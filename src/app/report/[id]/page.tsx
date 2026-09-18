@@ -1,7 +1,9 @@
 import { AppHeader } from "@/components/layout/AppHeader";
 import { ReportTranscript } from "@/components/report/ReportTranscript";
 import { ReportWhiteboard } from "@/components/report/ReportWhiteboard";
+import { EvaluationReport } from "@/components/report/EvaluationReport";
 import { SnapshotGallery } from "@/components/report/SnapshotGallery";
+import { parseStoredEvaluation } from "@/lib/evaluation/parseStored";
 import { Badge } from "@/components/ui/Badge";
 import { formatDateTime, formatDurationMs, sessionDurationMs } from "@/lib/format";
 import { prisma } from "@/lib/db";
@@ -35,6 +37,8 @@ export default async function ReportPage({ params }: PageProps) {
   const level = isTargetLevel(session.targetLevel)
     ? session.targetLevel
     : session.targetLevel;
+
+  const evaluation = parseStoredEvaluation(session.evaluationJson);
 
   const galleryItems = snapshots.map((snap) => ({
     id: snap.id,
@@ -98,6 +102,14 @@ export default async function ReportPage({ params }: PageProps) {
           </div>
         </dl>
 
+        <EvaluationReport
+          sessionId={session.id}
+          sessionStatus={session.status}
+          evaluation={evaluation}
+          promptTokens={session.promptTokens}
+          completionTokens={session.completionTokens}
+        />
+
         <section className="mt-10">
           <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
             Final whiteboard
@@ -130,23 +142,12 @@ export default async function ReportPage({ params }: PageProps) {
           />
         </section>
 
-        <div
-          className="mt-10 rounded-[6px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] px-6 py-16 text-center"
-        >
-          <p className="text-sm text-[#6B6B6B]">
-            Evaluation report — arrives in Phase 7
+        {session.verdict ? (
+          <p className="mt-8 text-sm text-[#6B6B6B]">
+            Dashboard verdict:{" "}
+            <span className="font-medium text-[#0A0A0A]">{session.verdict}</span>
           </p>
-        </div>
-        <footer className="mt-8 border-t border-[#E5E5E5] pt-4 text-xs text-[#6B6B6B]">
-          OpenRouter usage:{" "}
-          <span className="tabular-nums text-[#0A0A0A]">
-            {session.promptTokens.toLocaleString()} prompt
-          </span>{" "}
-          /{" "}
-          <span className="tabular-nums text-[#0A0A0A]">
-            {session.completionTokens.toLocaleString()} completion tokens
-          </span>
-        </footer>
+        ) : null}
       </main>
     </>
   );

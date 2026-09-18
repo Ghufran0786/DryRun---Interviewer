@@ -1,0 +1,2 @@
+ALTER TABLE "Session" ADD COLUMN "reconnectCount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Session" ADD COLUMN "closeCodesJson" TEXT;

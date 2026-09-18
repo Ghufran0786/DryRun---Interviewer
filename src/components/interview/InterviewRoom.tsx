@@ -403,10 +403,21 @@ export function InterviewRoom({
         },
       ]);
       await finalCaptureIfNeeded();
+      const closeCodes =
+        connectionSummary.closeCodes === "none"
+          ? []
+          : connectionSummary.closeCodes
+              .split(",")
+              .map((code) => Number.parseInt(code.trim(), 10))
+              .filter((code) => !Number.isNaN(code));
       const res = await fetch(`/api/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "completed" }),
+        body: JSON.stringify({
+          reconnectCount: connectionSummary.reconnectCount,
+          closeCodesJson: closeCodes,
+          status: "completed",
+        }),
       });
       if (!res.ok) {
         setEnding(false);

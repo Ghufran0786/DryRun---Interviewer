@@ -48,6 +48,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     endedAt?: Date;
     verdict?: string;
     currentPhase?: string;
+    reconnectCount?: number;
+    closeCodesJson?: string | null;
   } = {};
 
   if (typeof record.status === "string") {
@@ -65,6 +67,44 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (typeof record.verdict === "string") {
     data.verdict = record.verdict.slice(0, 500);
+  }
+
+  if (record.reconnectCount !== undefined) {
+    if (
+      typeof record.reconnectCount !== "number" ||
+      !Number.isInteger(record.reconnectCount) ||
+      record.reconnectCount < 0 ||
+      record.reconnectCount > 1000
+    ) {
+      return NextResponse.json(
+        { error: "Invalid reconnectCount" },
+        { status: 400 },
+      );
+    }
+    data.reconnectCount = record.reconnectCount;
+  }
+
+  if (record.closeCodesJson !== undefined) {
+    if (record.closeCodesJson === null) {
+      data.closeCodesJson = null;
+    } else if (Array.isArray(record.closeCodesJson)) {
+      const codes = record.closeCodesJson.filter(
+        (code): code is number =>
+          typeof code === "number" && Number.isInteger(code),
+      );
+      if (codes.length > 50) {
+        return NextResponse.json(
+          { error: "Invalid closeCodesJson" },
+          { status: 400 },
+        );
+      }
+      data.closeCodesJson = JSON.stringify(codes);
+    } else {
+      return NextResponse.json(
+        { error: "Invalid closeCodesJson" },
+        { status: 400 },
+      );
+    }
   }
 
   if (record.currentPhase !== undefined) {

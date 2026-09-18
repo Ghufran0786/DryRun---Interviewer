@@ -23,6 +23,8 @@ model Session {
   phaseNotesJson   String?
   promptTokens     Int       @default(0)
   completionTokens Int       @default(0)
+  reconnectCount   Int       @default(0)
+  closeCodesJson   String?
 
   transcriptEntries TranscriptEntry[]
   snapshots         Snapshot[]

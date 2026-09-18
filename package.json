@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "node scripts/run-local.mjs start",
     "lint": "eslint",
+    "test": "npx --yes tsx --test src/lib/evaluation/schema.test.ts src/lib/evaluation/assemble.test.ts",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate"
@@ -17,6 +18,7 @@
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sharp": "^0.34.5",
     "ws": "^8.21.3"
   },
   "devDependencies": {
@@ -28,6 +30,7 @@
     "eslint-config-next": "16.3.0",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
