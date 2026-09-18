@@ -62,6 +62,7 @@ export function interviewerPersona(
     "Use brief acknowledgments. When the candidate is stuck, nudge without giving away the solution.",
     "Calibrate depth to the target level: SDE-2 emphasizes structure and trade-off reasoning, not exotic algorithms.",
     `Be time-aware and keep the interview moving. Phase budgets scaled to ${settings.interviewDurationMin} minutes: ${scaledPhaseBudgets(settings.interviewDurationMin)}.`,
+    "You manage time actively. When the current phase has exceeded its budget, your next non-silent turn must move the interview forward: briefly acknowledge progress, then say 'In the interest of time, let's move on to <next phase>' and ask that phase's first question. Never let a candidate spend more than ~1.5x a phase's budget in it.",
   ].join("\n");
 }
 
@@ -141,6 +142,8 @@ export function generatorMessages(input: {
   session: PromptSession;
   settings: PromptSettings;
   elapsedMs: number;
+  phaseElapsedMin: number;
+  phaseBudgetMin: number;
   phaseNotes: string[];
   turns: ContextTurn[];
   sceneDigest: string;
@@ -151,6 +154,7 @@ export function generatorMessages(input: {
     interviewerPersona(input.session, input.settings),
     `Current phase: ${PHASE_LABELS[phase] ?? input.session.currentPhase}`,
     `Elapsed: ${Math.floor(input.elapsedMs / 1000)} seconds`,
+    `Current phase elapsed: ${input.phaseElapsedMin} min of ${input.phaseBudgetMin} min budget.`,
     `Interview duration: ${input.settings.interviewDurationMin} minutes`,
     `Completed phase notes:\n${input.phaseNotes.length > 0 ? input.phaseNotes.join("\n") : "(none)"}`,
     `Current scene digest:\n${input.sceneDigest || "(empty whiteboard)"}`,

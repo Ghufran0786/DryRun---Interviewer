@@ -101,10 +101,13 @@ export function DryRunReportDocument({ data }: { data: ReportPdfData }) {
           {data.candidateName} · {data.sessionDate} · {data.durationLabel}
         </Text>
         {data.evaluated && evaluation ? (
-          <Text style={{ marginTop: 8 }}>
-            {evaluation.verdict} · {evaluation.weightedScore.toFixed(2)}/4 ·{" "}
-            {evaluation.levelEstimate}
-          </Text>
+          <View style={{ marginTop: 8 }}>
+            <Text>
+              {evaluation.verdict} · {evaluation.weightedScore.toFixed(2)}/4 ·{" "}
+              {evaluation.levelEstimate}
+            </Text>
+            <Text style={{ marginTop: 4, fontSize: 9 }}>{evaluation.wouldPass}</Text>
+          </View>
         ) : (
           <Text style={{ marginTop: 8 }}>Not evaluated locally yet</Text>
         )}

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import {
+  BASE_PHASE_BUDGETS,
+  INTERVIEW_PHASES,
   isInterviewPhase,
   nextInterviewPhase,
   type InterviewPhase,
@@ -81,6 +83,18 @@ function imageByteLength(dataUrl: string): number {
   const encoded = dataUrl.slice(dataUrl.indexOf(",") + 1);
   const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
   return Math.max(0, Math.floor((encoded.length * 3) / 4) - padding);
+}
+
+function phaseBudgetMin(
+  phase: InterviewPhase,
+  interviewDurationMin: number,
+): number {
+  const baseTotal = INTERVIEW_PHASES.reduce(
+    (sum, key) => sum + BASE_PHASE_BUDGETS[key],
+    0,
+  );
+  const scale = interviewDurationMin / baseTotal;
+  return Math.max(1, Math.round(BASE_PHASE_BUDGETS[phase] * scale));
 }
 
 function parsePhaseNotes(value: string | null): string[] {
@@ -351,7 +365,26 @@ export async function POST(request: Request) {
       orderBy: [{ tsMs: "desc" }, { createdAt: "desc" }],
       take: 12,
     });
-    const advancePhase = decision?.advance_phase === true;
+    const lastPhaseAdvance = await prisma.transcriptEntry.findFirst({
+      where: {
+        sessionId,
+        kind: "phase_advance",
+        suppressed: false,
+      },
+      orderBy: [{ tsMs: "desc" }, { createdAt: "desc" }],
+      select: { tsMs: true },
+    });
+    const phaseStartMs = lastPhaseAdvance?.tsMs ?? 0;
+    const phaseElapsedMs = Math.max(0, canonicalElapsedMs - phaseStartMs);
+    const phaseElapsedMin = Math.floor(phaseElapsedMs / 60_000);
+    const currentPhase = session.currentPhase as InterviewPhase;
+    const phaseBudgetMinValue = phaseBudgetMin(
+      currentPhase,
+      settings.interviewDurationMin,
+    );
+    const advancePhase =
+      decision?.advance_phase === true ||
+      phaseElapsedMin > phaseBudgetMinValue;
     const baseInstruction =
       record.trigger === "utterance" &&
       decision &&
@@ -380,23 +413,23 @@ export async function POST(request: Request) {
 
     const generatorStartedAt = performance.now();
     const orderedTurns = fullTurns.reverse();
-    const textOnlyMessages = generatorMessages({
+    const generatorContext = {
       session,
       settings,
       elapsedMs: canonicalElapsedMs,
+      phaseElapsedMin,
+      phaseBudgetMin: phaseBudgetMinValue,
       phaseNotes: parsePhaseNotes(session.phaseNotesJson),
       turns: orderedTurns,
       sceneDigest: record.sceneDigest,
+    };
+    const textOnlyMessages = generatorMessages({
+      ...generatorContext,
       instruction,
     });
     const fallbackMessages = boardImageBase64
       ? generatorMessages({
-          session,
-          settings,
-          elapsedMs: canonicalElapsedMs,
-          phaseNotes: parsePhaseNotes(session.phaseNotesJson),
-          turns: orderedTurns,
-          sceneDigest: record.sceneDigest,
+          ...generatorContext,
           instruction: fallbackInstruction,
         })
       : textOnlyMessages;

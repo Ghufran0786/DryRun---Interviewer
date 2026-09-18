@@ -1,4 +1,4 @@
-export const RUBRIC_VERSION = "v1";
+export const RUBRIC_VERSION = "v1.1";
 
 export const EVALUATOR_SYSTEM_PROMPT = `You are a bar-raiser-calibre system design interview evaluator at a top
 product company. You will receive: the interview problem, the candidate's
@@ -24,6 +24,14 @@ Rules:
    punctuation, or mis-transcribed proper nouns.
 9. Output ONLY the JSON object described in the schema. No markdown, no
    commentary.
+10. Speech-to-text artifacts: an isolated segment that is obviously
+off-topic garbage (wrong domain, unrelated to any question) is a
+transcription artifact. Ignore it entirely; never attribute it to the
+candidate's communication.
+11. Hints include interviewer answers given in response to an explicit
+candidate help request (e.g. 'can you please help me with that answer').
+Count these toward rule 6's hint caps even when the system nudgeCount stat
+is lower.
 
 LEVEL CALIBRATION:
 - SDE-1 (0-2 yrs): EXPECTED structured approach, reasonable functional and
