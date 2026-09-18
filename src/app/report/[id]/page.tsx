@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { ReportTranscript } from "@/components/report/ReportTranscript";
 import { ReportWhiteboard } from "@/components/report/ReportWhiteboard";
 import { EvaluationReport } from "@/components/report/EvaluationReport";
+import { ReportDownloads } from "@/components/report/ReportDownloads";
 import { SnapshotGallery } from "@/components/report/SnapshotGallery";
 import { parseStoredEvaluation } from "@/lib/evaluation/parseStored";
 import { Badge } from "@/components/ui/Badge";
@@ -102,13 +103,19 @@ export default async function ReportPage({ params }: PageProps) {
           </div>
         </dl>
 
-        <EvaluationReport
-          sessionId={session.id}
-          sessionStatus={session.status}
-          evaluation={evaluation}
-          promptTokens={session.promptTokens}
-          completionTokens={session.completionTokens}
-        />
+        <div className="mt-8 space-y-6">
+          <ReportDownloads
+            sessionId={session.id}
+            sessionStatus={session.status}
+          />
+          <EvaluationReport
+            sessionId={session.id}
+            sessionStatus={session.status}
+            evaluation={evaluation}
+            promptTokens={session.promptTokens}
+            completionTokens={session.completionTokens}
+          />
+        </div>
 
         <section className="mt-10">
           <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">

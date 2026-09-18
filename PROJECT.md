@@ -1,6 +1,6 @@
 # DryRun
 
-DryRun is a local-first, single-user web app for practicing system design mock interviews against an AI interviewer. You sketch on an embedded whiteboard, speak your reasoning, and receive probes and hints while the system captures transcripts, snapshots, and timings for later evaluation. **Roadmap:** 1 Scaffold/shell · 2 Excalidraw + snapshots · 3 Deepgram live STT · 4 Interviewer loop · 5 Interviewer TTS · 6 Vision · 7 Evaluation engine (done) · 8 Reports/PDF/export.
+DryRun is a local-first, single-user web app for practicing system design mock interviews against an AI interviewer. You sketch on an embedded whiteboard, speak your reasoning, and receive probes and hints while the system captures transcripts, snapshots, and timings for later evaluation. **Roadmap:** 1 Scaffold/shell · 2 Excalidraw + snapshots · 3 Deepgram live STT · 4 Interviewer loop · 5 Interviewer TTS · 6 Vision · 7 Evaluation engine · 8 Reports/PDF/export (done).
 
 ## Design system
 
@@ -20,7 +20,7 @@ A/V recording deferred — the timestamped transcript + snapshot bundle is the d
 
 **(d) Interviewer-loop architecture (Phase 4):** turn detection is separate from reasoning. Turn end uses the de-stacked Deepgram/client boundary timing in FACT (h). Each finished turn is classified by a fast cheap model into `stay_silent` / `probe` / `nudge` / `answer_question`; only non-silent outcomes call the main interviewer model. Whiteboard snapshots are event-driven: debounced Excalidraw `onChange` (3–5s idle) + material-change gate (element count/version diff), never on a fixed timer. Send KeepAlive frames on the Deepgram socket during long silences. **TTS gating:** the global `interviewerSpeaking` state follows FACT (k). Phase 3's transcript store supports the required source/suppression concept.
 
-**(e) Reports:** the persisted artifact bundle (transcript + snapshots + interventions + timings) is the source of truth; the PDF is a server-side render of it; evaluation must be re-runnable against any old session.
+**(e) Reports:** the persisted artifact bundle (transcript + snapshots + interventions + timings) is the source of truth; the PDF is a server-side render of it; evaluation must be re-runnable against any old session. **Phase 8 export bundle (exact layout):** `transcript.md` (non-suppressed `[mm:ss] role(kind): text` lines), `evaluation.json` (raw `evaluationJson` verbatim when evaluated; omitted when not), `ANALYSIS_PROMPT.md` (LLM handoff prompt built from `buildAnalysisPrompt`, sourcing rubric constants from `rubric.ts`), and `snapshots/NNN-<trigger>-<mmss>.png` for every snapshot at original resolution in chronological order. PDF generation uses `@react-pdf/renderer` with `renderToBuffer` in a route handler; Puppeteer/headless Chrome is forbidden. PDF diagrams use stored snapshot PNG files on disk downscaled through the shared sharp path (~1000px wide), never a live Excalidraw instance. PDF/export routes return 409 unless `Session.status === "completed"` and work for unevaluated completed sessions with clear not-evaluated handling.
 
 **(f) Excalidraw exemption:** the Excalidraw canvas and its native UI are EXEMPT from the monochrome rule — fidelity to the real interview tool beats aesthetic purity. Never restyle Excalidraw internals. Monochrome applies to the surrounding app shell only.
 
@@ -62,3 +62,5 @@ SQLite file: `./data/dryrun.db` (`DATABASE_URL=file:../data/dryrun.db` in `.env`
 | GET | `/api/snapshots/[snapshotId]/png` | Serve snapshot PNG file |
 | GET, PUT | `/api/settings` | Read/update singleton settings |
 | POST | `/api/sessions/[id]/evaluate` | Run or re-run rubric evaluation on a completed session |
+| GET | `/api/sessions/[id]/report.pdf` | Download monochrome PDF report for a completed session |
+| GET | `/api/sessions/[id]/export` | Download LLM handoff zip bundle for a completed session |

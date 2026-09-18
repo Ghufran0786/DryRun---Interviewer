@@ -41,6 +41,22 @@ VERDICT BANDS (guidance, computed weighted score 0-4): >=3.4 Strong Hire;
 step from the band with explicit rationale (e.g. a disqualifying gap or an
 exceptional recovery).`;
 
+export function rubricLevelCalibrationText(): string {
+  const start = EVALUATOR_SYSTEM_PROMPT.indexOf("LEVEL CALIBRATION:");
+  const end = EVALUATOR_SYSTEM_PROMPT.indexOf("VERDICT BANDS");
+  if (start < 0 || end < 0) {
+    return "";
+  }
+  return EVALUATOR_SYSTEM_PROMPT.slice(start, end).trim();
+}
+
+export function rubricDimensionsSummary(): string {
+  return RUBRIC_DIMENSIONS.map(
+    (dimension) =>
+      `${dimension.key} (weight ${dimension.weight}): ${dimension.label} — ${dimension.description}`,
+  ).join("\n");
+}
+
 export type RubricDimensionKey =
   | "requirements"
   | "estimation"
