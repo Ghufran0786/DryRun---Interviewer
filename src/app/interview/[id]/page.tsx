@@ -1,0 +1,53 @@
+import { InterviewRoom } from "@/components/interview/InterviewRoom";
+import { TranscriptStoreProvider } from "@/components/transcript/TranscriptStore";
+import { prisma } from "@/lib/db";
+import { parseSceneJson } from "@/lib/scenePayload";
+import { getSettings } from "@/lib/settings";
+import { isInterviewPhase } from "@/lib/interviewPhases";
+import { isTargetLevel } from "@/lib/validation";
+import { notFound, redirect } from "next/navigation";
+
+type PageProps = { params: Promise<{ id: string }> };
+
+export default async function InterviewPage({ params }: PageProps) {
+  const { id } = await params;
+  const session = await prisma.session.findUnique({ where: { id } });
+  if (!session) {
+    notFound();
+  }
+  if (session.status === "completed") {
+    redirect(`/report/${session.id}`);
+  }
+
+  const settings = await getSettings();
+  const targetLevel = isTargetLevel(session.targetLevel)
+    ? session.targetLevel
+    : "SDE-2";
+
+  const startedAtMs = (
+    session.startedAt ?? session.createdAt
+  ).getTime();
+
+  return (
+    <TranscriptStoreProvider>
+      <InterviewRoom
+        sessionId={session.id}
+        title={session.title}
+        targetLevel={targetLevel}
+        interviewerModel={settings.interviewerModel}
+        keyterms={settings.keyterms}
+        interviewDurationMin={settings.interviewDurationMin}
+        ttsEnabled={settings.ttsEnabled}
+        usingHeadphones={settings.usingHeadphones}
+        currentPhase={
+          isInterviewPhase(session.currentPhase)
+            ? session.currentPhase
+            : "requirements"
+        }
+        status={session.status}
+        startedAtMs={startedAtMs}
+        initialScene={parseSceneJson(session.sceneJson)}
+      />
+    </TranscriptStoreProvider>
+  );
+}

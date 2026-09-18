@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  title            String
+  problem          String
+  targetLevel      String
+  status           String    @default("created")
+  createdAt        DateTime  @default(now())
+  startedAt        DateTime?
+  endedAt          DateTime?
+  verdict          String?
+  evaluationJson   String?
+  sceneJson        String?
+  currentPhase     String    @default("requirements")
+  phaseNotesJson   String?
+  promptTokens     Int       @default(0)
+  completionTokens Int       @default(0)
+
+  transcriptEntries TranscriptEntry[]
+  snapshots         Snapshot[]
+}
+
+model TranscriptEntry {
+  id         String   @id @default(cuid())
+  sessionId  String
+  role       String
+  kind       String?
+  text       String
+  tsMs       Int
+  suppressed Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model Snapshot {
+  id           String   @id @default(cuid())
+  sessionId    String
+  capturedAt   DateTime @default(now())
+  pngPath      String
+  elementsJson String
+  trigger      String
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model Settings {
+  id                   String @id @default("singleton")
+  candidateName        String @default("")
+  defaultTargetLevel   String @default("SDE-2")
+  classifierModel      String @default("google/gemini-2.5-flash")
+  interviewerModel     String @default("google/gemini-2.5-flash")
+  interviewerVisionWarning String @default("")
+  evaluatorModel       String @default("anthropic/claude-sonnet-4.5")
+  ttsEnabled            Boolean @default(true)
+  ttsModel              String @default("mistralai/voxtral-mini-tts-2603")
+  ttsVoice              String @default("en_paul_neutral")
+  usingHeadphones       Boolean @default(true)
+  interviewDurationMin Int    @default(45)
+  keyterms             String @default("Ghufran Ahmad Khan\nGhufran\nAhmad\nKhan\nLeetCode\nCassandra\nDynamoDB\nPostgreSQL\nRedis\nKafka\nKubernetes\ngRPC\nCDN\nQPS\nDAU\nsharding\nconsistent hashing\nidempotent\nrate limiting\nload balancer\nwebsocket\nCRDT\noperational transformation\nleaderboard\nwrite-ahead log\nmessage queue\nmicroservices")
+  strictness           String @default("Standard")
+  resumeText           String @default("")
+}

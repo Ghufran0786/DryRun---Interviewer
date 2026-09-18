@@ -1,0 +1,6 @@
+Read PROJECT.md before any change. Never violate PINNED FACTS.
+Strict monochrome UI (see PROJECT.md design system). No color.
+TypeScript strict; no `any` unless justified in the report.
+Do not install dependencies beyond the approved stack without flagging it.
+Do not build ahead of the current phase.
+End every run with a report: what changed, what couldn't be done, exact steps to verify.
