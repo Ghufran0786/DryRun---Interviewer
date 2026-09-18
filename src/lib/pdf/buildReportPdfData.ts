@@ -5,7 +5,22 @@ import { selectPdfDiagramSnapshots } from "@/lib/report/pdfDiagramSnapshots";
 import { readSnapshotPngForPdf } from "@/lib/report/snapshotPngResize";
 import { visibleTranscriptLines } from "@/lib/report/transcriptFormat";
 import { formatDateTime, formatDurationMs, sessionDurationMs } from "@/lib/format";
+import { digestFromElementsJson } from "@/lib/sceneDigest";
 import type { Session, Settings, Snapshot, TranscriptEntry } from "@prisma/client";
+
+function parsePhaseNotes(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((note): note is string => typeof note === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 export async function buildReportPdfData(input: {
   session: Session;
@@ -22,17 +37,25 @@ export async function buildReportPdfData(input: {
     stored.scores.length > 0 &&
     !stored.error;
 
+  const snapshotById = new Map(
+    input.snapshots.map((snapshot) => [snapshot.id, snapshot]),
+  );
   const diagramMeta = selectPdfDiagramSnapshots(
     input.snapshots,
     input.session.startedAt,
+    evaluated ? 4 : 6,
   );
   const diagrams = await Promise.all(
-    diagramMeta.map(async (diagram) => ({
-      ...diagram,
-      imageDataUri: `data:image/png;base64,${(
-        await readSnapshotPngForPdf(diagram.pngPath)
-      ).toString("base64")}`,
-    })),
+    diagramMeta.map(async (diagram) => {
+      const snapshot = snapshotById.get(diagram.id);
+      return {
+        ...diagram,
+        digest: digestFromElementsJson(snapshot?.elementsJson ?? "[]"),
+        imageDataUri: `data:image/png;base64,${(
+          await readSnapshotPngForPdf(diagram.pngPath)
+        ).toString("base64")}`,
+      };
+    }),
   );
 
   const durationMs = sessionDurationMs(
@@ -44,6 +67,8 @@ export async function buildReportPdfData(input: {
     title: input.session.title,
     problem: input.session.problem,
     candidateName: input.settings.candidateName.trim() || "Candidate",
+    targetLevel: input.session.targetLevel,
+    phaseNotes: parsePhaseNotes(input.session.phaseNotesJson),
     sessionDate: input.session.endedAt
       ? formatDateTime(input.session.endedAt)
       : formatDateTime(input.session.createdAt),

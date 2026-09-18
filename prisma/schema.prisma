@@ -74,4 +74,5 @@ model Settings {
   keyterms             String @default("Ghufran Ahmad Khan\nGhufran\nAhmad\nKhan\nLeetCode\nCassandra\nDynamoDB\nPostgreSQL\nRedis\nKafka\nKubernetes\ngRPC\nCDN\nQPS\nDAU\nsharding\nconsistent hashing\nidempotent\nrate limiting\nload balancer\nwebsocket\nCRDT\noperational transformation\nleaderboard\nwrite-ahead log\nmessage queue\nmicroservices")
   strictness           String @default("Standard")
   resumeText           String @default("")
+  localEvaluationEnabled Boolean @default(false)
 }

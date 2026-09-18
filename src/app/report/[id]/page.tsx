@@ -8,6 +8,7 @@ import { parseStoredEvaluation } from "@/lib/evaluation/parseStored";
 import { Badge } from "@/components/ui/Badge";
 import { formatDateTime, formatDurationMs, sessionDurationMs } from "@/lib/format";
 import { prisma } from "@/lib/db";
+import { getSettings } from "@/lib/settings";
 import { parseSceneJson } from "@/lib/scenePayload";
 import { digestFromElementsJson } from "@/lib/sceneDigest";
 import { isTargetLevel } from "@/lib/validation";
@@ -23,7 +24,7 @@ export default async function ReportPage({ params }: PageProps) {
     notFound();
   }
 
-  const [snapshots, transcript] = await Promise.all([
+  const [snapshots, transcript, settings] = await Promise.all([
     prisma.snapshot.findMany({
       where: { sessionId: id },
       orderBy: { capturedAt: "asc" },
@@ -32,6 +33,7 @@ export default async function ReportPage({ params }: PageProps) {
       where: { sessionId: id },
       orderBy: [{ tsMs: "asc" }, { createdAt: "asc" }],
     }),
+    getSettings(),
   ]);
 
   const durationMs = sessionDurationMs(session.startedAt, session.endedAt);
@@ -111,6 +113,7 @@ export default async function ReportPage({ params }: PageProps) {
           <EvaluationReport
             sessionId={session.id}
             sessionStatus={session.status}
+            localEvaluationEnabled={settings.localEvaluationEnabled}
             evaluation={evaluation}
             promptTokens={session.promptTokens}
             completionTokens={session.completionTokens}

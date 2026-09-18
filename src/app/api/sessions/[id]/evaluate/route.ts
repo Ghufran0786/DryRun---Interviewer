@@ -89,8 +89,18 @@ export async function POST(_request: Request, context: RouteContext) {
     );
   }
 
-  const [settings, entries, snapshots] = await Promise.all([
-    getSettings(),
+  const settings = await getSettings();
+  if (!settings.localEvaluationEnabled) {
+    return NextResponse.json(
+      {
+        error:
+          "Local evaluation is disabled in Settings. Download the analysis packet PDF or export bundle and evaluate with an external model, or enable local evaluation in Settings.",
+      },
+      { status: 403 },
+    );
+  }
+
+  const [entries, snapshots] = await Promise.all([
     prisma.transcriptEntry.findMany({
       where: { sessionId },
       orderBy: [{ tsMs: "asc" }, { createdAt: "asc" }],

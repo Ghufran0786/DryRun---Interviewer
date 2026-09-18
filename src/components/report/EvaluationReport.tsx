@@ -20,6 +20,7 @@ export type StoredEvaluation = EvaluationPayload & {
 type EvaluationReportProps = {
   sessionId: string;
   sessionStatus: string;
+  localEvaluationEnabled: boolean;
   evaluation: StoredEvaluation | null;
   promptTokens: number;
   completionTokens: number;
@@ -44,6 +45,7 @@ function scoreBar(score: number) {
 export function EvaluationReport({
   sessionId,
   sessionStatus,
+  localEvaluationEnabled,
   evaluation,
   promptTokens,
   completionTokens,
@@ -91,12 +93,19 @@ export function EvaluationReport({
         <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
           Evaluation
         </p>
-        {canEvaluate ? (
+        {canEvaluate && localEvaluationEnabled ? (
           <Button type="button" onClick={() => void runEvaluation()} disabled={running}>
             {running ? "Evaluating…" : buttonLabel}
           </Button>
         ) : null}
       </div>
+
+      {!localEvaluationEnabled && canEvaluate ? (
+        <p className="text-sm text-[#6B6B6B]">
+          Local evaluation off — download the analysis packet below and evaluate
+          with an external model.
+        </p>
+      ) : null}
 
       {error ? (
         <p className="rounded-[6px] border border-[#E5E5E5] bg-white px-4 py-3 text-sm text-[#0A0A0A]">
@@ -105,11 +114,17 @@ export function EvaluationReport({
       ) : null}
 
       {!evaluation ? (
-        <div className="rounded-[6px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] px-6 py-12 text-center text-sm text-[#6B6B6B]">
-          {canEvaluate
-            ? "No evaluation yet. Run evaluation to generate a rubric report."
-            : "Complete the interview to unlock evaluation."}
-        </div>
+        localEvaluationEnabled ? (
+          <div className="rounded-[6px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] px-6 py-12 text-center text-sm text-[#6B6B6B]">
+            {canEvaluate
+              ? "No evaluation yet. Run evaluation to generate a rubric report."
+              : "Complete the interview to unlock evaluation."}
+          </div>
+        ) : !canEvaluate ? (
+          <div className="rounded-[6px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] px-6 py-12 text-center text-sm text-[#6B6B6B]">
+            Complete the interview to unlock evaluation.
+          </div>
+        ) : null
       ) : evaluation.error ? (
         <div className="rounded-[6px] border border-[#E5E5E5] bg-white px-4 py-3 text-sm text-[#0A0A0A]">
           {evaluation.error}

@@ -8,7 +8,7 @@ Light theme only. Background `#FAFAFA`, surfaces `#FFFFFF`, primary text `#0A0A0
 
 ## Decisions
 
-A/V recording deferred — the timestamped transcript + snapshot bundle is the deliverable. Live suggestions are interviewer-style nudges only (no coaching panel); the Hints tab is removed in Phase 4 and nudges are tagged in the transcript for the report. Phase 8 PDF renders diagrams from stored snapshot PNGs, never from a live Excalidraw instance.
+A/V recording deferred — the timestamped transcript + snapshot bundle is the deliverable. Live suggestions are interviewer-style nudges only (no coaching panel); the Hints tab is removed in Phase 4 and nudges are tagged in the transcript for the report. Phase 8 PDF renders diagrams from stored snapshot PNGs, never from a live Excalidraw instance. Evaluation is externalized by default (`localEvaluationEnabled=false`): the exported PDF/bundle is the evaluation input for external models; FACT (l) governs the local engine when enabled.
 
 ## PINNED FACTS — never violate
 
@@ -41,7 +41,7 @@ A/V recording deferred — the timestamped transcript + snapshot bundle is the d
 - **Session:** `id` (cuid), `title`, `problem`, `targetLevel` (`SDE-1` | `SDE-2` | `Senior`), `status` (`created` | `active` | `completed`), `currentPhase` (`requirements` | `estimation` | `api` | `hld` | `deepdive` | `wrapup`, default `requirements`), `phaseNotesJson?`, `promptTokens` (default `0`), `completionTokens` (default `0`), `reconnectCount` (default `0`), `closeCodesJson?`, `createdAt`, `startedAt?`, `endedAt?`, `verdict?`, `evaluationJson?`, `sceneJson?` (persisted Excalidraw `elements` + `files`, not `appState`)
 - **TranscriptEntry:** `id`, `sessionId`, `role` (`candidate` | `interviewer` | `system`), `kind?` (`opening` | `probe` | `nudge` | `answer` | `phase_advance` | `wrapup`; candidate entries stay null), `text`, `tsMs`, `suppressed` (default `false`; Phase 5 TTS gate), `createdAt`
 - **Snapshot:** `id`, `sessionId`, `capturedAt`, `pngPath` (relative under `data/`), `elementsJson`, `trigger` (`auto` | `manual` | `final`)
-- **Settings** (singleton): `candidateName`, `defaultTargetLevel`, `classifierModel` (default `google/gemini-2.5-flash`), `interviewerModel`, `interviewerVisionWarning` (persistent capability warning), `evaluatorModel`, `ttsEnabled` (default `true`), `ttsModel` (default `mistralai/voxtral-mini-tts-2603`), `ttsVoice` (default `en_paul_neutral`), `usingHeadphones` (default `true`), `interviewDurationMin` (default `45`), `keyterms` (newline-delimited Nova-3 prompting terms, seeded with candidate name and system-design vocabulary), `strictness` (`Lenient` | `Standard` | `Bar-raiser`), `resumeText`
+- **Settings** (singleton): `candidateName`, `defaultTargetLevel`, `classifierModel` (default `google/gemini-2.5-flash`), `interviewerModel`, `interviewerVisionWarning` (persistent capability warning), `evaluatorModel`, `ttsEnabled` (default `true`), `ttsModel` (default `mistralai/voxtral-mini-tts-2603`), `ttsVoice` (default `en_paul_neutral`), `usingHeadphones` (default `true`), `interviewDurationMin` (default `45`), `keyterms` (newline-delimited Nova-3 prompting terms, seeded with candidate name and system-design vocabulary), `strictness` (`Lenient` | `Standard` | `Bar-raiser`), `resumeText`, `localEvaluationEnabled` (default `false`)
 
 SQLite file: `./data/dryrun.db` (`DATABASE_URL=file:../data/dryrun.db` in `.env`, relative to `prisma/schema.prisma`).
 
@@ -61,6 +61,6 @@ SQLite file: `./data/dryrun.db` (`DATABASE_URL=file:../data/dryrun.db` in `.env`
 | POST | `/api/sessions/[id]/snapshots` | Store PNG + elements snapshot |
 | GET | `/api/snapshots/[snapshotId]/png` | Serve snapshot PNG file |
 | GET, PUT | `/api/settings` | Read/update singleton settings |
-| POST | `/api/sessions/[id]/evaluate` | Run or re-run rubric evaluation on a completed session |
+| POST | `/api/sessions/[id]/evaluate` | Run or re-run rubric evaluation on a completed session (403 when `localEvaluationEnabled` is false) |
 | GET | `/api/sessions/[id]/report.pdf` | Download monochrome PDF report for a completed session |
 | GET | `/api/sessions/[id]/export` | Download LLM handoff zip bundle for a completed session |

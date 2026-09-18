@@ -39,6 +39,7 @@ export async function PUT(request: Request) {
     keyterms?: string;
     strictness?: string;
     resumeText?: string;
+    localEvaluationEnabled?: boolean;
   } = {};
 
   const candidateName = parseOptionalString(record.candidateName, 200);
@@ -146,6 +147,16 @@ export async function PUT(request: Request) {
   const resumeText = parseOptionalString(record.resumeText, 200_000);
   if (resumeText !== undefined) {
     data.resumeText = resumeText;
+  }
+
+  if (record.localEvaluationEnabled !== undefined) {
+    if (typeof record.localEvaluationEnabled !== "boolean") {
+      return NextResponse.json(
+        { error: "localEvaluationEnabled must be boolean" },
+        { status: 400 },
+      );
+    }
+    data.localEvaluationEnabled = record.localEvaluationEnabled;
   }
 
   if (Object.keys(data).length === 0) {

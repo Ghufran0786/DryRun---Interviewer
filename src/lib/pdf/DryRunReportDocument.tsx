@@ -58,9 +58,12 @@ const styles = StyleSheet.create({
   },
   barFilled: { backgroundColor: "#0A0A0A" },
   bullet: { marginBottom: 3 },
-  diagram: { width: "100%", marginTop: 6, marginBottom: 10 },
+  diagram: { width: "100%", marginTop: 6, marginBottom: 4 },
   caption: { fontSize: 9, color: "#6B6B6B", marginBottom: 4 },
+  digest: { fontSize: 8, lineHeight: 1.35, marginBottom: 10, color: "#0A0A0A" },
   appendix: { fontSize: 8, lineHeight: 1.35 },
+  timelinePhase: { width: "40%" },
+  timelineMinutes: { width: "20%", textAlign: "right" },
 });
 
 function ScoreBar({ score }: { score: number }) {
@@ -81,9 +84,75 @@ function ScoreBar({ score }: { score: number }) {
 
 function footerText(data: ReportPdfData): string {
   if (!data.evaluated || !data.evaluation) {
-    return `DryRun · generated ${data.generatedAt}`;
+    return `DryRun · analysis packet · generated ${data.generatedAt}`;
   }
   return `DryRun · evaluated with ${data.evaluation.evaluatorModel} · rubric ${data.evaluation.rubricVersion} · generated ${data.generatedAt}`;
+}
+
+function StatsLine({
+  data,
+  includeTokens,
+}: {
+  data: ReportPdfData;
+  includeTokens: boolean;
+}) {
+  const base = `Duration ${data.stats.durationMin} min · ${data.stats.candidateWords} candidate words · ${data.stats.interviewerTurns} interviewer turns · ${data.stats.nudgeCount} nudges · ${data.stats.reconnectCount} audio reconnect${data.stats.reconnectCount === 1 ? "" : "s"}`;
+  if (!includeTokens) {
+    return <Text>{base}</Text>;
+  }
+  return (
+    <Text>
+      {base} · {data.promptTokens} prompt / {data.completionTokens} completion
+      tokens
+    </Text>
+  );
+}
+
+function PhaseTimelineSection({ data }: { data: ReportPdfData }) {
+  return (
+    <>
+      <Text style={styles.h2}>Phase timeline</Text>
+      {data.stats.phaseTimeline.map((row) => (
+        <View key={`${row.phase}-${row.minutes}`} style={styles.row}>
+          <Text style={styles.timelinePhase}>{row.phase}</Text>
+          <Text style={styles.timelineMinutes}>{row.minutes} min</Text>
+        </View>
+      ))}
+      {data.phaseNotes.length > 0 ? (
+        <>
+          <Text style={{ marginTop: 8, fontSize: 9, fontWeight: "bold" }}>
+            Phase notes
+          </Text>
+          {data.phaseNotes.map((note) => (
+            <Text key={note} style={styles.bullet}>• {note}</Text>
+          ))}
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function DiagramsSection({ data }: { data: ReportPdfData }) {
+  if (data.diagrams.length === 0) {
+    return null;
+  }
+  return (
+    <Page size="A4" style={styles.page}>
+      <Text style={styles.h2}>Diagrams</Text>
+      {data.diagrams.map((diagram) => (
+        <View key={diagram.id} wrap={false}>
+          <Text style={styles.caption}>{diagram.caption}</Text>
+          <Image style={styles.diagram} src={diagram.imageDataUri} />
+          <Text style={styles.digest}>
+            {diagram.digest.trim().length > 0
+              ? diagram.digest
+              : "(empty whiteboard)"}
+          </Text>
+        </View>
+      ))}
+      <Text fixed style={styles.footer}>{footerText(data)}</Text>
+    </Page>
+  );
 }
 
 export function DryRunReportDocument({ data }: { data: ReportPdfData }) {
@@ -91,6 +160,38 @@ export function DryRunReportDocument({ data }: { data: ReportPdfData }) {
   const scoreByDimension = new Map(
     evaluation?.scores.map((score) => [score.dimension, score]) ?? [],
   );
+
+  if (!data.evaluated || !evaluation) {
+    return (
+      <Document>
+        <Page size="A4" style={styles.page}>
+          <Text style={styles.h1}>Analysis packet — not locally evaluated</Text>
+          <Text>{data.problem}</Text>
+          <Text style={styles.muted}>
+            {data.candidateName} · {data.targetLevel} · {data.sessionDate} ·{" "}
+            {data.durationLabel}
+          </Text>
+
+          <Text style={styles.h2}>Stats</Text>
+          <StatsLine data={data} includeTokens={false} />
+
+          <PhaseTimelineSection data={data} />
+
+          <Text fixed style={styles.footer}>{footerText(data)}</Text>
+        </Page>
+
+        <DiagramsSection data={data} />
+
+        <Page size="A4" style={styles.page}>
+          <Text style={styles.h2}>Transcript appendix</Text>
+          {data.transcriptLines.map((line) => (
+            <Text key={line} style={styles.appendix}>{line}</Text>
+          ))}
+          <Text fixed style={styles.footer}>{footerText(data)}</Text>
+        </Page>
+      </Document>
+    );
+  }
 
   return (
     <Document>
@@ -100,105 +201,75 @@ export function DryRunReportDocument({ data }: { data: ReportPdfData }) {
         <Text style={styles.muted}>
           {data.candidateName} · {data.sessionDate} · {data.durationLabel}
         </Text>
-        {data.evaluated && evaluation ? (
-          <View style={{ marginTop: 8 }}>
-            <Text>
-              {evaluation.verdict} · {evaluation.weightedScore.toFixed(2)}/4 ·{" "}
-              {evaluation.levelEstimate}
-            </Text>
-            <Text style={{ marginTop: 4, fontSize: 9 }}>{evaluation.wouldPass}</Text>
-          </View>
-        ) : (
-          <Text style={{ marginTop: 8 }}>Not evaluated locally yet</Text>
-        )}
+        <View style={{ marginTop: 8 }}>
+          <Text>
+            {evaluation.verdict} · {evaluation.weightedScore.toFixed(2)}/4 ·{" "}
+            {evaluation.levelEstimate}
+          </Text>
+          <Text style={{ marginTop: 4, fontSize: 9 }}>{evaluation.wouldPass}</Text>
+        </View>
 
         <Text style={styles.h2}>Score table</Text>
-        {data.evaluated && evaluation ? (
-          RUBRIC_DIMENSIONS.map((dimension) => {
-            const row = scoreByDimension.get(dimension.key);
-            const score = row?.score ?? 0;
-            return (
-              <View key={dimension.key} style={styles.row}>
-                <Text style={styles.cellLabel}>{dimension.label}</Text>
-                <Text style={styles.cellWeight}>{dimension.weight}</Text>
-                <Text style={styles.cellScore}>{score}</Text>
-                <View style={styles.cellBar}>
-                  <ScoreBar score={score} />
-                </View>
-                <Text style={styles.cellImprovement}>
-                  {row?.improvement ?? "—"}
-                </Text>
+        {RUBRIC_DIMENSIONS.map((dimension) => {
+          const row = scoreByDimension.get(dimension.key);
+          const score = row?.score ?? 0;
+          return (
+            <View key={dimension.key} style={styles.row}>
+              <Text style={styles.cellLabel}>{dimension.label}</Text>
+              <Text style={styles.cellWeight}>{dimension.weight}</Text>
+              <Text style={styles.cellScore}>{score}</Text>
+              <View style={styles.cellBar}>
+                <ScoreBar score={score} />
               </View>
-            );
-          })
-        ) : (
-          <Text>Run evaluation on the report page to populate scores.</Text>
-        )}
-
-        {data.evaluated && evaluation ? (
-          <>
-            <Text style={styles.h2}>Strengths</Text>
-            {evaluation.strengths.map((item) => (
-              <Text key={item} style={styles.bullet}>• {item}</Text>
-            ))}
-            <Text style={styles.h2}>Gaps</Text>
-            {evaluation.gaps.map((item) => (
-              <Text key={item} style={styles.bullet}>• {item}</Text>
-            ))}
-            <Text style={styles.h2}>Action items</Text>
-            {evaluation.actionItems.map((item, index) => (
-              <Text key={`${index}-${item}`} style={styles.bullet}>
-                {index + 1}. {item}
+              <Text style={styles.cellImprovement}>
+                {row?.improvement ?? "—"}
               </Text>
-            ))}
+            </View>
+          );
+        })}
 
-            <Text style={styles.h2}>Phase timeline</Text>
-            {evaluation.phaseAnalysis.map((phase) => (
-              <Text key={`${phase.phase}-${phase.minutes}`} style={styles.bullet}>
-                {phase.phase}: {phase.minutes} min — {phase.assessment}
-              </Text>
-            ))}
+        <Text style={styles.h2}>Strengths</Text>
+        {evaluation.strengths.map((item) => (
+          <Text key={item} style={styles.bullet}>• {item}</Text>
+        ))}
+        <Text style={styles.h2}>Gaps</Text>
+        {evaluation.gaps.map((item) => (
+          <Text key={item} style={styles.bullet}>• {item}</Text>
+        ))}
+        <Text style={styles.h2}>Action items</Text>
+        {evaluation.actionItems.map((item, index) => (
+          <Text key={`${index}-${item}`} style={styles.bullet}>
+            {index + 1}. {item}
+          </Text>
+        ))}
 
-            <Text style={styles.h2}>Evidence</Text>
-            {RUBRIC_DIMENSIONS.map((dimension) => {
-              const row = scoreByDimension.get(dimension.key);
-              return (
-                <View key={dimension.key} style={{ marginBottom: 6 }}>
-                  <Text style={{ fontWeight: "bold" }}>{dimension.label}</Text>
-                  {(row?.evidence ?? []).map((item) => (
-                    <Text key={item} style={styles.bullet}>• {item}</Text>
-                  ))}
-                </View>
-              );
-            })}
-          </>
-        ) : null}
+        <Text style={styles.h2}>Phase timeline</Text>
+        {evaluation.phaseAnalysis.map((phase) => (
+          <Text key={`${phase.phase}-${phase.minutes}`} style={styles.bullet}>
+            {phase.phase}: {phase.minutes} min — {phase.assessment}
+          </Text>
+        ))}
+
+        <Text style={styles.h2}>Evidence</Text>
+        {RUBRIC_DIMENSIONS.map((dimension) => {
+          const row = scoreByDimension.get(dimension.key);
+          return (
+            <View key={dimension.key} style={{ marginBottom: 6 }}>
+              <Text style={{ fontWeight: "bold" }}>{dimension.label}</Text>
+              {(row?.evidence ?? []).map((item) => (
+                <Text key={item} style={styles.bullet}>• {item}</Text>
+              ))}
+            </View>
+          );
+        })}
 
         <Text style={styles.h2}>Stats</Text>
-        <Text>
-          Duration {data.stats.durationMin} min · {data.stats.candidateWords}{" "}
-          candidate words · {data.stats.interviewerTurns} interviewer turns ·{" "}
-          {data.stats.nudgeCount} nudges · {data.stats.reconnectCount} audio
-          reconnect{data.stats.reconnectCount === 1 ? "" : "s"} ·{" "}
-          {data.promptTokens} prompt / {data.completionTokens} completion
-          tokens
-        </Text>
+        <StatsLine data={data} includeTokens={true} />
 
         <Text fixed style={styles.footer}>{footerText(data)}</Text>
       </Page>
 
-      {data.diagrams.length > 0 ? (
-        <Page size="A4" style={styles.page}>
-          <Text style={styles.h2}>Diagrams</Text>
-          {data.diagrams.map((diagram) => (
-            <View key={diagram.id} wrap={false}>
-              <Text style={styles.caption}>{diagram.caption}</Text>
-              <Image style={styles.diagram} src={diagram.imageDataUri} />
-            </View>
-          ))}
-          <Text fixed style={styles.footer}>{footerText(data)}</Text>
-        </Page>
-      ) : null}
+      <DiagramsSection data={data} />
 
       <Page size="A4" style={styles.page}>
         <Text style={styles.h2}>Transcript appendix</Text>

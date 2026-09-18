@@ -48,6 +48,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       : "Standard",
   );
   const [resumeText, setResumeText] = useState(initial.resumeText);
+  const [localEvaluationEnabled, setLocalEvaluationEnabled] = useState(
+    initial.localEvaluationEnabled,
+  );
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +88,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           keyterms,
           strictness,
           resumeText,
+          localEvaluationEnabled,
         }),
       });
     if (!res.ok) {
@@ -227,12 +231,27 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           {interviewerVisionWarning}
         </p>
       ) : null}
+      <label className="flex items-start gap-3 text-sm text-[#0A0A0A]">
+        <input
+          type="checkbox"
+          checked={localEvaluationEnabled}
+          onChange={(event) => setLocalEvaluationEnabled(event.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-[#0A0A0A]"
+        />
+        <span>
+          Local evaluation (uses OpenRouter credits)
+          <span className="block text-xs text-[#6B6B6B]">
+            Off = evaluate externally by giving the exported PDF to a strong
+            model.
+          </span>
+        </span>
+      </label>
       <FieldInput
         label="Evaluator model"
         name="evaluatorModel"
         value={evaluatorModel}
         onChange={(e) => setEvaluatorModel(e.target.value)}
-        hint="Any OpenRouter model ID; used for post-session evaluation (Phase 7)."
+        hint="Any OpenRouter model ID; used when local evaluation is enabled."
       />
       <fieldset className="space-y-4 rounded-[6px] border border-[#E5E5E5] bg-[#FAFAFA] p-4">
         <legend className="px-1 text-[11px] font-semibold uppercase tracking-wider text-[#0A0A0A]">

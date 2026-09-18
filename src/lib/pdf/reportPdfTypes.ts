@@ -12,14 +12,17 @@ export type ReportPdfEvaluation = EvaluationPayload & {
 
 export type ReportPdfDiagram = PdfDiagramSnapshot & {
   imageDataUri: string;
+  digest: string;
 };
 
 export type ReportPdfData = {
   title: string;
   problem: string;
   candidateName: string;
+  targetLevel: string;
   sessionDate: string;
   durationLabel: string;
+  phaseNotes: string[];
   evaluated: boolean;
   evaluation: ReportPdfEvaluation | null;
   stats: InterviewStats;

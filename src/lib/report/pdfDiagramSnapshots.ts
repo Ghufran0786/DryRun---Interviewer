@@ -22,6 +22,7 @@ function snapshotElapsedMs(
 export function selectPdfDiagramSnapshots(
   snapshots: SnapshotLike[],
   startedAt: Date | null,
+  maxAdditional = 4,
 ): PdfDiagramSnapshot[] {
   const ordered = [...snapshots].sort(
     (left, right) => left.capturedAt.getTime() - right.capturedAt.getTime(),
@@ -50,7 +51,7 @@ export function selectPdfDiagramSnapshots(
     if (snapshot.id === final.id) {
       continue;
     }
-    if (selected.length >= 5) {
+    if (selected.length >= 1 + maxAdditional) {
       break;
     }
     selected.push(toDiagram(snapshot));
