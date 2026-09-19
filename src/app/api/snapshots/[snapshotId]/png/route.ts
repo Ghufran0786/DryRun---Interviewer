@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
-import { snapshotAbsolutePath } from "@/lib/snapshotStorage";
-import fs from "node:fs/promises";
+import { readSnapshotPng } from "@/lib/snapshotStorage";
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type RouteContext = { params: Promise<{ snapshotId: string }> };
 
@@ -18,16 +20,9 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Snapshot not found" }, { status: 404 });
   }
 
-  let absolutePath: string;
-  try {
-    absolutePath = snapshotAbsolutePath(snapshot.pngPath);
-  } catch {
-    return NextResponse.json({ error: "Invalid snapshot path" }, { status: 500 });
-  }
-
   let file: Buffer;
   try {
-    file = await fs.readFile(absolutePath);
+    file = await readSnapshotPng(snapshot.pngPath);
   } catch {
     return NextResponse.json({ error: "PNG file missing" }, { status: 404 });
   }
@@ -36,7 +31,7 @@ export async function GET(_request: Request, context: RouteContext) {
     status: 200,
     headers: {
       "Content-Type": "image/png",
-      "Cache-Control": "private, max-age=3600",
+      "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
 }

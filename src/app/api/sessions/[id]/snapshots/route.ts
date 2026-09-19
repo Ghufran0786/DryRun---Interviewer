@@ -2,9 +2,13 @@ import { prisma } from "@/lib/db";
 import { parseElementsJson } from "@/lib/excalidrawElement";
 import {
   isSnapshotTrigger,
-  writeSnapshotPng,
+  putSnapshotPng,
 } from "@/lib/snapshotStorage";
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -100,15 +104,18 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const capturedAt = new Date();
+  const snapshotId = randomUUID();
   let pngPath: string;
   try {
-    pngPath = await writeSnapshotPng(id, pngBuffer, capturedAt);
+    const stored = await putSnapshotPng(id, snapshotId, pngBuffer);
+    pngPath = stored.key;
   } catch {
     return NextResponse.json({ error: "Failed to store PNG" }, { status: 500 });
   }
 
   const snapshot = await prisma.snapshot.create({
     data: {
+      id: snapshotId,
       sessionId: id,
       capturedAt,
       pngPath,

@@ -9,8 +9,7 @@ import {
 } from "@/lib/interviewPhases";
 import type { ChatMessage } from "@/lib/openrouter";
 import { digestFromElementsJson } from "@/lib/sceneDigest";
-import { snapshotAbsolutePath } from "@/lib/snapshotStorage";
-import fs from "node:fs/promises";
+import { readSnapshotPng } from "@/lib/snapshotStorage";
 import sharp from "sharp";
 
 export type TranscriptEntryLike = {
@@ -303,8 +302,7 @@ export function selectSnapshots(
 async function snapshotToDataUri(
   snapshot: SelectedSnapshot,
 ): Promise<{ dataUri: string; bytes: number }> {
-  const absolutePath = snapshotAbsolutePath(snapshot.pngPath);
-  const input = await fs.readFile(absolutePath);
+  const input = await readSnapshotPng(snapshot.pngPath);
   const resized = await sharp(input)
     .resize({
       width: MAX_IMAGE_SIDE,

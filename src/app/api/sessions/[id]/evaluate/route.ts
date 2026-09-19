@@ -16,10 +16,11 @@ import { getSettings } from "@/lib/settings";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const EVALUATOR_TIMEOUT_MS = 90_000;
+const EVALUATOR_TIMEOUT_MS = 55_000;
 const EVALUATOR_MAX_TOKENS = 4000;
 
 async function addUsage(

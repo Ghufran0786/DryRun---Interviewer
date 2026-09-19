@@ -5,6 +5,7 @@ import { pdfDownloadFilename } from "@/lib/report/filename";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
