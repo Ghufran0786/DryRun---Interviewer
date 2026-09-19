@@ -2,6 +2,7 @@ import { InterviewRoom } from "@/components/interview/InterviewRoom";
 import { TranscriptStoreProvider } from "@/components/transcript/TranscriptStore";
 import { prisma } from "@/lib/db";
 import { parseSceneJson } from "@/lib/scenePayload";
+import { getDeepgramTransport } from "@/lib/deepgramTransport";
 import { getSettings } from "@/lib/settings";
 import { isInterviewPhase } from "@/lib/interviewPhases";
 import { isTargetLevel } from "@/lib/validation";
@@ -52,6 +53,7 @@ export default async function InterviewPage({ params }: PageProps) {
         status={session.status}
         startedAtMs={startedAtMs}
         initialScene={parseSceneJson(session.sceneJson)}
+        deepgramTransport={getDeepgramTransport()}
       />
     </TranscriptStoreProvider>
   );

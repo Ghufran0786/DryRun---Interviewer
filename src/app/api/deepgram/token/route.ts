@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
 const GRANT_URL = "https://api.deepgram.com/v1/auth/grant";
-let loggedFirstGrantShape = false;
+const TOKEN_TTL_SECONDS = 30;
 
 type GrantResponse = {
   access_token?: unknown;
@@ -17,7 +19,6 @@ type GrantAttempt = {
 async function requestGrant(
   apiKey: string,
   body: object,
-  requestedTtlSeconds: number | null,
 ): Promise<GrantAttempt> {
   const response = await fetch(GRANT_URL, {
     method: "POST",
@@ -32,7 +33,7 @@ async function requestGrant(
   const text = await response.text();
   console.log("Deepgram grant status:", {
     status: response.status,
-    requestedTtlSeconds,
+    requestedTtlSeconds: TOKEN_TTL_SECONDS,
   });
   let parsed: GrantResponse | null = null;
   try {
@@ -57,11 +58,9 @@ export async function POST() {
 
   let attempt: GrantAttempt;
   try {
-    attempt = await requestGrant(apiKey, { ttl_seconds: 300 }, 300);
-    // The TTL field name is unverified upstream; a 4xx may mean the param was
-    // rejected, so retry once with an empty body (default TTL covers a handshake).
+    attempt = await requestGrant(apiKey, { ttl_seconds: TOKEN_TTL_SECONDS });
     if (attempt.status >= 400 && attempt.status < 500) {
-      attempt = await requestGrant(apiKey, {}, null);
+      attempt = await requestGrant(apiKey, {});
     }
   } catch {
     return NextResponse.json(
@@ -86,26 +85,22 @@ export async function POST() {
   }
 
   const grant = attempt.parsed;
-  if (!grant || typeof grant.access_token !== "string" || grant.access_token.length === 0) {
+  if (
+    !grant ||
+    typeof grant.access_token !== "string" ||
+    grant.access_token.length === 0
+  ) {
     return NextResponse.json(
       { error: "Deepgram grant response did not contain access_token." },
       { status: 502 },
     );
   }
 
-  if (!loggedFirstGrantShape) {
-    loggedFirstGrantShape = true;
-    // Dev aid: preserve the response shape without ever logging the credential.
-    console.log("Deepgram grant response:", {
-      ...grant,
-      access_token: "[REDACTED]",
-    });
-  }
-
-  const expiresIn = typeof grant.expires_in === "number" ? grant.expires_in : 300;
+  const expiresInSec =
+    typeof grant.expires_in === "number" ? grant.expires_in : TOKEN_TTL_SECONDS;
 
   return NextResponse.json({
-    accessToken: grant.access_token,
-    expiresIn,
+    token: grant.access_token,
+    expiresInSec,
   });
 }

@@ -19,6 +19,7 @@ import { useInterviewerLoop } from "@/hooks/useInterviewerLoop";
 import { useInterviewerVoice } from "@/hooks/useInterviewerVoice";
 import { useSnapshotCapture } from "@/hooks/useSnapshotCapture";
 import { useTranscriptPersistence } from "@/hooks/useTranscriptPersistence";
+import type { DeepgramTransport } from "@/lib/deepgramTransport";
 import type { InterviewPhase } from "@/lib/interviewPhases";
 import type { ScenePayload } from "@/lib/scenePayload";
 import { digestElements } from "@/lib/sceneDigest";
@@ -64,6 +65,7 @@ export type InterviewRoomProps = {
   status: string;
   startedAtMs: number;
   initialScene: ScenePayload | null;
+  deepgramTransport: DeepgramTransport;
 };
 
 /** Imperative Excalidraw API — Phase 4/5 attach vision and interviewer logic here. */
@@ -95,6 +97,7 @@ export function InterviewRoom({
   status,
   startedAtMs,
   initialScene,
+  deepgramTransport,
 }: InterviewRoomProps) {
   const router = useRouter();
   const [tab, setTab] = useState("transcript");
@@ -226,6 +229,7 @@ export function InterviewRoom({
   } = useDeepgramLive({
     startedAtMs,
     keyterms,
+    deepgramTransport,
     shouldSuppressTranscript: () => interviewerSpeakingRef.current,
     onInterim: handleInterim,
     onFinal: handleFinal,

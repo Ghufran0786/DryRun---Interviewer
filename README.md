@@ -7,7 +7,7 @@ It runs on your machine with your own API keys. No accounts, no hosted service, 
 ## What it does
 
 - **Whiteboard**: an embedded [Excalidraw](https://excalidraw.com) canvas, the same tool used in many real remote interviews. Snapshots are captured automatically when the board changes.
-- **Live speech-to-text**: your voice streams to Deepgram Nova-3 via a local proxy; the transcript appears live with interim results and timestamps. Custom keyterms improve recognition of your name and technical vocabulary.
+- **Live speech-to-text**: your voice streams to Deepgram Nova-3 with a server-minted token; the transcript appears live with interim results and timestamps. Custom keyterms improve recognition of your name and technical vocabulary.
 - **AI interviewer**: asks the problem, listens, probes trade-offs, nudges when you stall, and moves the interview through six phases (Requirements → Estimation → API → High-Level Design → Deep Dive → Wrap-up) on a time budget. It sees the current whiteboard image plus a text digest of your boxes and arrows.
 - **Voice**: the interviewer speaks its questions aloud. **Browser voice** is free and the default (`window.speechSynthesis`). On Windows, use **Microsoft Edge** for the best built-in Natural voices. **OpenRouter** TTS is optional and billed per character. Barge-in: talk over it and it stops (with headphones).
 - **Analysis packet**: a monochrome PDF with the transcript, phase timeline, stats, every whiteboard snapshot with its digest, and an evaluation prompt on the last page. A zip export bundles the same material as markdown, JSON, and PNGs.
@@ -35,14 +35,31 @@ npm run dev
 
 Open http://localhost:3000.
 
-`npm run dev` starts two processes:
+`npm run dev` starts **one** Next.js process on port 3000. Speech streams directly to Deepgram with a short-lived token from the server (`DEEPGRAM_TRANSPORT=direct`, the default).
 
-| Port | Process | Purpose |
-|------|---------|---------|
-| 3000 | Next.js | The app: UI, API routes, database |
-| 3001 | Deepgram proxy (`scripts/deepgram-proxy.mjs`) | Relays microphone audio to Deepgram so your API key never reaches the browser |
+Set `DEEPGRAM_TRANSPORT=proxy` to also start the legacy Deepgram proxy on port 3001 (two processes).
 
-Both must be running for the microphone to work. If you see `EADDRINUSE`, an older instance is still up; stop all Node processes and run `npm run dev` again.
+| Port | Process | When |
+|------|---------|------|
+| 3000 | Next.js | Always |
+| 3001 | Deepgram proxy | Only when `DEEPGRAM_TRANSPORT=proxy` |
+
+If you see `EADDRINUSE`, an older instance is still up; stop all Node processes and run `npm run dev` again.
+
+## Hosted mode (Vercel + Supabase)
+
+For a personal deployment (authentication arrives in a later release), set:
+
+| Variable | Purpose |
+|----------|---------|
+| `APP_MODE` | `hosted` — Postgres + Supabase Storage adapters |
+| `DATABASE_URL` | Supabase pooled Postgres connection string |
+| `DIRECT_URL` | Supabase direct connection (migrations) |
+| `SUPABASE_URL` | Project API URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key for private snapshot bucket I/O |
+| `SUPABASE_SNAPSHOT_BUCKET` | Private bucket name for PNG snapshots |
+
+Build on Vercel with `npm run build:hosted`. Local clones keep `APP_MODE=local` and need only SQLite plus API keys.
 
 ## First-run setup
 
@@ -70,7 +87,7 @@ The interview loop is designed to be cheap: filler and short fragments never rea
 
 ## Architecture in one paragraph
 
-Next.js App Router with TypeScript, Tailwind, Prisma and SQLite (`data/dryrun.db`). The browser streams `audio/webm;codecs=opus` over a WebSocket to the local proxy, which authenticates to Deepgram. Finalized transcript segments persist immediately; interim results are display-only. Turn-taking separates *detection* (Deepgram utterance boundaries plus a short client timer) from *reasoning* (a cheap classifier decides whether to respond; only then does the interviewer model generate a line). Whiteboard snapshots are event-driven and stored as PNG plus Excalidraw element JSON, from which a text digest is derived. The persisted session (transcript, snapshots, interventions, timings) is the source of truth; the PDF is a render of it. `PROJECT.md` documents the pinned technical facts that shaped every one of these decisions.
+Next.js App Router with TypeScript, Tailwind, Prisma and SQLite (`data/dryrun.db`) in local mode. The browser streams `audio/webm;codecs=opus` over a WebSocket to Deepgram using a short-lived bearer token from `POST /api/deepgram/token`. Finalized transcript segments persist immediately; interim results are display-only. Turn-taking separates *detection* (Deepgram utterance boundaries plus a short client timer) from *reasoning* (a cheap classifier decides whether to respond; only then does the interviewer model generate a line). Whiteboard snapshots are event-driven and stored as PNG plus Excalidraw element JSON, from which a text digest is derived. The persisted session (transcript, snapshots, interventions, timings) is the source of truth; the PDF is a render of it. `PROJECT.md` documents the pinned technical facts that shaped every one of these decisions.
 
 ## Troubleshooting
 

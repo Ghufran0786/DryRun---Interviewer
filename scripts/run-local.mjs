@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nextBin = require.resolve("next/dist/bin/next");
 const proxyScript = path.join(root, "scripts", "deepgram-proxy.mjs");
 const mode = process.argv[2] === "start" ? "start" : "dev";
+const useProxy = process.env.DEEPGRAM_TRANSPORT === "proxy";
 
 const children = [
   spawn(process.execPath, [nextBin, mode], {
@@ -15,12 +16,17 @@ const children = [
     env: process.env,
     stdio: "inherit",
   }),
-  spawn(process.execPath, [proxyScript], {
-    cwd: root,
-    env: process.env,
-    stdio: "inherit",
-  }),
 ];
+
+if (useProxy) {
+  children.push(
+    spawn(process.execPath, [proxyScript], {
+      cwd: root,
+      env: process.env,
+      stdio: "inherit",
+    }),
+  );
+}
 
 let shuttingDown = false;
 

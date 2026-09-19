@@ -2,7 +2,8 @@
 
 import { Button } from "@/components/ui/Button";
 import {
-  buildListenUrl,
+  buildDirectListenUrl,
+  buildProxyListenUrl,
   parseDeepgramMessage,
   resultTranscript,
   type DeepgramResultsMessage,
@@ -18,14 +19,11 @@ type DoctorLog = {
 };
 
 type TokenResult = {
-  accessToken: string;
+  token: string;
   status: number;
-  expiresIn: number | null;
+  expiresInSec: number | null;
   tokenLength: number;
 };
-
-const BEARER_LISTEN_URL =
-  "wss://api.deepgram.com/v1/listen?model=nova-3&smart_format=true";
 
 const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
   echoCancellation: true,
@@ -53,15 +51,15 @@ async function mintToken(): Promise<TokenResult> {
     throw new Error(`HTTP ${response.status}; body=${body.slice(0, 200)}`);
   }
   const record = parsed as Record<string, unknown>;
-  if (!response.ok || typeof record.accessToken !== "string") {
+  if (!response.ok || typeof record.token !== "string") {
     throw new Error(`HTTP ${response.status}; body=${body.slice(0, 200)}`);
   }
   return {
-    accessToken: record.accessToken,
+    token: record.token,
     status: response.status,
-    expiresIn:
-      typeof record.expiresIn === "number" ? record.expiresIn : null,
-    tokenLength: record.accessToken.length,
+    expiresInSec:
+      typeof record.expiresInSec === "number" ? record.expiresInSec : null,
+    tokenLength: record.token.length,
   };
 }
 
@@ -109,7 +107,7 @@ export function DeepgramDoctor() {
   const tokenRoute = () =>
     run("Token route", async () => {
       const token = await mintToken();
-      return `status=${token.status}; expires_in=${token.expiresIn}; token_length=${token.tokenLength}`;
+      return `status=${token.status}; expires_in=${token.expiresInSec}; token_length=${token.tokenLength}`;
     });
 
   const bareBearerWebSocket = () =>
@@ -122,9 +120,9 @@ export function DeepgramDoctor() {
       let negotiatedProtocol = "";
 
       return new Promise<string>((resolve, reject) => {
-        const socket = new WebSocket(BEARER_LISTEN_URL, [
+        const socket = new WebSocket(buildDirectListenUrl(), [
           "bearer",
-          token.accessToken,
+          token.token,
         ]);
         let keepAlive: number | null = null;
         let successTimer: number | null = null;
@@ -186,7 +184,7 @@ export function DeepgramDoctor() {
 
   const bareWebSocket = () =>
     run("Bare WS, no mic", async () => {
-      const url = buildListenUrl({ model: "nova-3" });
+      const url = buildProxyListenUrl([], { model: "nova-3" });
       const startedAt = performance.now();
       let openedAt: number | null = null;
       let messages = 0;
@@ -297,7 +295,7 @@ export function DeepgramDoctor() {
     });
 
   const fullPipelineBearer = () =>
-    run("Full pipeline 15s via bearer", async () => {
+    run("Full pipeline 15s (direct — production path)", async () => {
       const token = await mintToken();
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: AUDIO_CONSTRAINTS,
@@ -312,9 +310,9 @@ export function DeepgramDoctor() {
       const startedAt = performance.now();
 
       try {
-        const socket = new WebSocket(BEARER_LISTEN_URL, [
+        const socket = new WebSocket(buildDirectListenUrl(), [
           "bearer",
-          token.accessToken,
+          token.token,
         ]);
 
         await new Promise<void>((resolve, reject) => {
@@ -406,7 +404,7 @@ export function DeepgramDoctor() {
       const startedAt = performance.now();
 
       try {
-        const socket = new WebSocket(buildListenUrl());
+        const socket = new WebSocket(buildProxyListenUrl());
 
         await new Promise<void>((resolve, reject) => {
           let settled = false;
@@ -532,7 +530,7 @@ export function DeepgramDoctor() {
           onClick={fullPipelineBearer}
           disabled={running !== null}
         >
-          Full pipeline 15s via bearer
+          Full pipeline 15s (direct — production path)
         </Button>
       </div>
 

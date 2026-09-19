@@ -1,12 +1,14 @@
 "use client";
 
 import {
-  buildListenUrl,
+  buildDirectListenUrl,
+  buildProxyListenUrl,
   classifyResult,
   isDeepgramProxyControl,
   parseDeepgramMessage,
   type DeepgramResultsMessage,
 } from "@/lib/deepgram";
+import type { DeepgramTransport } from "@/lib/deepgramTransport";
 import { parseKeyterms } from "@/lib/deepgramKeyterms";
 import { elapsedMsSinceSessionStart } from "@/lib/sessionTime";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -30,9 +32,28 @@ const MAX_RECONNECTS = BACKOFF_MS.length;
 const CLOSE_DRAIN_MS = 500;
 const AUDIO_TIMESLICE_MS = 250;
 
+async function fetchDeepgramListenToken(): Promise<string> {
+  const response = await fetch("/api/deepgram/token", { method: "POST" });
+  const bodyText = await response.text();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bodyText);
+  } catch {
+    throw new Error(`Token route returned non-JSON (HTTP ${response.status})`);
+  }
+  const record = parsed as Record<string, unknown>;
+  if (!response.ok || typeof record.token !== "string" || record.token.length === 0) {
+    const message =
+      typeof record.error === "string" ? record.error : `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+  return record.token;
+}
+
 export type UseDeepgramLiveOptions = {
   startedAtMs: number;
   keyterms: string;
+  deepgramTransport: DeepgramTransport;
   shouldSuppressTranscript: () => boolean;
   onInterim: (text: string) => void;
   onFinal: (text: string, tsMs: number) => void;
@@ -120,6 +141,7 @@ function pickMimeType(): string {
 export function useDeepgramLive({
   startedAtMs,
   keyterms,
+  deepgramTransport,
   shouldSuppressTranscript,
   onInterim,
   onFinal,
@@ -144,6 +166,7 @@ export function useDeepgramLive({
   const stoppingRef = useRef(false);
   const attemptSequenceRef = useRef(0);
   const activeAttemptRef = useRef<AttemptSummary | null>(null);
+  const deepgramTransportRef = useRef(deepgramTransport);
 
   const utteranceTextRef = useRef<string[]>([]);
   const utteranceTsRef = useRef(0);
@@ -167,6 +190,10 @@ export function useDeepgramLive({
       onUtteranceEnd,
     };
   }, [onInterim, onFinal, onUtteranceEnd, shouldSuppressTranscript]);
+
+  useEffect(() => {
+    deepgramTransportRef.current = deepgramTransport;
+  }, [deepgramTransport]);
 
   const recordDiagnostic = useCallback(
     (
@@ -372,7 +399,11 @@ export function useDeepgramLive({
     if (reconnectAttemptsRef.current >= MAX_RECONNECTS) {
       releaseMic();
       if (!attempt.proxySocketOpened) {
-        setError("proxy not running (is npm run dev up?)");
+        const handshakeError =
+          deepgramTransportRef.current === "proxy"
+            ? "proxy not running (is npm run dev up?)"
+            : "Deepgram handshake failed (check DEEPGRAM_API_KEY and network).";
+        setError(handshakeError);
         setState("error");
         return;
       }
@@ -424,13 +455,14 @@ export function useDeepgramLive({
       if (stoppingRef.current) {
         return;
       }
+      const transport = deepgramTransportRef.current;
       setState(isReconnect ? "reconnecting" : "connecting");
       const attempt: AttemptSummary = {
         attemptId: ++attemptSequenceRef.current,
         reconnect: isReconnect,
         startedAtMs: Date.now(),
         proxySocketOpened: false,
-        tokenOutcome: "proxy-managed",
+        tokenOutcome: transport === "proxy" ? "proxy-managed" : "pending",
         wsUrl: "",
         timeToOpenMs: null,
         handshakeFailureMs: null,
@@ -444,6 +476,7 @@ export function useDeepgramLive({
       activeAttemptRef.current = attempt;
       recordDiagnostic(attempt.attemptId, "attempt-start", {
         reconnect: isReconnect,
+        transport,
       });
       setConnectionSummary((previous) => ({
         ...previous,
@@ -451,32 +484,94 @@ export function useDeepgramLive({
         reconnectCount:
           previous.reconnectCount + (isReconnect ? 1 : 0),
       }));
-      recordDiagnostic(attempt.attemptId, "token-delegated", {
-        detail: "local proxy mints a fresh JWT for this connection",
-      });
 
       if (stoppingRef.current) {
         return;
       }
 
       const selectedKeyterms = parseKeyterms(keyterms);
-      const wsUrl = buildListenUrl(undefined, selectedKeyterms);
+      let bearerToken: string | null = null;
+      if (transport === "direct") {
+        recordDiagnostic(attempt.attemptId, "token-fetch-start", {});
+        try {
+          bearerToken = await fetchDeepgramListenToken();
+          attempt.tokenOutcome = "minted";
+          recordDiagnostic(attempt.attemptId, "token-fetch-ok", {
+            tokenLength: bearerToken.length,
+          });
+        } catch (cause) {
+          attempt.tokenOutcome =
+            cause instanceof Error ? cause.message : "token-fetch-failed";
+          recordDiagnostic(attempt.attemptId, "token-fetch-failed", {
+            detail: attempt.tokenOutcome,
+          });
+          setError(attempt.tokenOutcome);
+          setState("error");
+          return;
+        }
+      } else {
+        recordDiagnostic(attempt.attemptId, "token-delegated", {
+          detail: "local proxy mints a fresh JWT for this connection",
+        });
+      }
+
+      if (stoppingRef.current) {
+        return;
+      }
+
+      const wsUrl =
+        transport === "direct"
+          ? buildDirectListenUrl(selectedKeyterms)
+          : buildProxyListenUrl(selectedKeyterms);
       attempt.wsUrl = wsUrl;
       recordDiagnostic(attempt.attemptId, "websocket-created", {
         url: attempt.wsUrl,
         urlLength: wsUrl.length,
         keytermCount: selectedKeyterms.length,
+        transport,
       });
       recordDiagnostic(attempt.attemptId, "production-websocket-url", {
         url: attempt.wsUrl,
-        authentication: "proxy-managed; token elided",
+        authentication:
+          transport === "direct"
+            ? "bearer subprotocol; token elided"
+            : "proxy-managed; token elided",
         keytermCount: selectedKeyterms.length,
       });
-      const socket = new WebSocket(wsUrl);
+
+      const socket =
+        transport === "direct" && bearerToken
+          ? new WebSocket(wsUrl, ["bearer", bearerToken])
+          : new WebSocket(wsUrl);
       socket.binaryType = "arraybuffer";
       socketRef.current = socket;
 
+      const markListening = () => {
+        if (attempt.timeToOpenMs !== null) {
+          return;
+        }
+        attempt.timeToOpenMs = Date.now() - attempt.startedAtMs;
+        attempt.proxySocketOpened = true;
+        recordDiagnostic(attempt.attemptId, "websocket-open", {
+          timeToOpenMs: attempt.timeToOpenMs,
+          transport,
+        });
+        reconnectAttemptsRef.current = 0;
+        setError(null);
+        setState("listening");
+        startRecorder(socket, attempt);
+        keepAliveTimerRef.current = window.setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "KeepAlive" }));
+          }
+        }, 5_000);
+      };
+
       socket.onopen = () => {
+        if (transport === "direct") {
+          markListening();
+          return;
+        }
         attempt.proxySocketOpened = true;
         recordDiagnostic(attempt.attemptId, "proxy-socket-open", {
           localOpenMs: Date.now() - attempt.startedAtMs,
@@ -491,25 +586,11 @@ export function useDeepgramLive({
         if (!message) {
           return;
         }
-        if (isDeepgramProxyControl(message)) {
+        if (transport === "proxy" && isDeepgramProxyControl(message)) {
           if (message.type !== "DryRunProxy.Ready") {
             return;
           }
-          if (attempt.timeToOpenMs === null) {
-            attempt.timeToOpenMs = Date.now() - attempt.startedAtMs;
-            recordDiagnostic(attempt.attemptId, "websocket-open", {
-              timeToOpenMs: attempt.timeToOpenMs,
-            });
-            reconnectAttemptsRef.current = 0;
-            setError(null);
-            setState("listening");
-            startRecorder(socket, attempt);
-            keepAliveTimerRef.current = window.setInterval(() => {
-              if (socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: "KeepAlive" }));
-              }
-            }, 5_000);
-          }
+          markListening();
           return;
         }
         if (message.type === "Results") {
@@ -557,10 +638,14 @@ export function useDeepgramLive({
               : `${previous.closeCodes}, ${event.code}`,
         }));
         if (!stoppingRef.current) {
+          const handshakeError =
+            transport === "proxy"
+              ? "proxy not running (is npm run dev up?)"
+              : "Deepgram handshake failed (check DEEPGRAM_API_KEY and network).";
           setError(
             attempt.proxySocketOpened
               ? `Lost connection (${event.code}: ${event.reason}).`
-              : "proxy not running (is npm run dev up?)",
+              : handshakeError,
           );
           scheduleReconnect(attempt);
         }
