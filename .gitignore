@@ -51,3 +51,6 @@ next-env.d.ts
 .stitch-tmp-*
 .stitch/tmp-*.json
 /.stitch/
+
+.vercel
+.env*
