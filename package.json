@@ -4,22 +4,26 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/run-local.mjs dev",
-    "build": "next build",
+    "build": "npm run prisma:generate && next build",
+    "build:hosted": "node scripts/build-hosted.mjs",
     "start": "node scripts/run-local.mjs start",
     "lint": "eslint",
     "test": "npx --yes tsx --test src/lib/evaluation/schema.test.ts src/lib/evaluation/assemble.test.ts",
+    "prisma:generate": "node scripts/prisma-schema.mjs generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:local": "prisma migrate deploy --schema prisma/schema.prisma",
+    "db:migrate:hosted": "prisma migrate deploy --schema prisma/postgres/schema.prisma",
     "db:generate": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "npm run prisma:generate"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.1",
     "@prisma/client": "^6.19.3",
+    "@react-pdf/renderer": "^4.3.2",
+    "jszip": "^3.10.1",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "@react-pdf/renderer": "^4.3.2",
-    "jszip": "^3.10.1",
     "sharp": "^0.34.5",
     "simple-icons": "^14.15.0",
     "ws": "^8.21.3"

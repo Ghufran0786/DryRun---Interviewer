@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  title            String
+  problem          String
+  targetLevel      String
+  status           String    @default("created")
+  createdAt        DateTime  @default(now())
+  startedAt        DateTime?
+  endedAt          DateTime?
+  verdict          String?
+  evaluationJson   String?
+  sceneJson        String?
+  currentPhase     String    @default("requirements")
+  phaseNotesJson   String?
+  promptTokens     Int       @default(0)
+  completionTokens Int       @default(0)
+  ttsChars         Int       @default(0)
+  reconnectCount   Int       @default(0)
+  closeCodesJson   String?
+
+  transcriptEntries TranscriptEntry[]
+  snapshots         Snapshot[]
+}
+
+model TranscriptEntry {
+  id         String   @id @default(cuid())
+  sessionId  String
+  role       String
+  kind       String?
+  trigger    String?
+  text       String
+  tsMs       Int
+  suppressed Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model Snapshot {
+  id           String   @id @default(cuid())
+  sessionId    String
+  capturedAt   DateTime @default(now())
+  pngPath      String
+  elementsJson String
+  trigger      String
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model Settings {
+  id                   String @id @default("singleton")
+  candidateName        String @default("")
+  defaultTargetLevel   String @default("SDE-2")
+  classifierModel      String @default("google/gemini-2.5-flash")
+  interviewerModel     String @default("google/gemini-2.5-flash")
+  interviewerVisionWarning String @default("")
+  evaluatorModel       String @default("anthropic/claude-sonnet-4.5")
+  ttsEnabled            Boolean @default(true)
+  ttsProvider           String  @default("browser")
+  browserVoiceName      String?
+  browserVoiceRate      Float   @default(1.0)
+  ttsModel              String @default("mistralai/voxtral-mini-tts-2603")
+  ttsVoice              String @default("en_paul_neutral")
+  usingHeadphones       Boolean @default(true)
+  interviewDurationMin Int    @default(45)
+  keyterms             String @default("Ghufran Ahmad Khan\nGhufran\nAhmad\nKhan\nLeetCode\nCassandra\nDynamoDB\nPostgreSQL\nRedis\nKafka\nKubernetes\ngRPC\nCDN\nQPS\nDAU\nsharding\nconsistent hashing\nidempotent\nrate limiting\nload balancer\nwebsocket\nCRDT\noperational transformation\nleaderboard\nwrite-ahead log\nmessage queue\nmicroservices")
+  strictness           String @default("Standard")
+  resumeText           String @default("")
+  localEvaluationEnabled Boolean @default(false)
+}
