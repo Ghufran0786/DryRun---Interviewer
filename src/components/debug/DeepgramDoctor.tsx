@@ -24,6 +24,9 @@ type TokenResult = {
   tokenLength: number;
 };
 
+const BEARER_LISTEN_URL =
+  "wss://api.deepgram.com/v1/listen?model=nova-3&smart_format=true";
+
 const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -107,6 +110,78 @@ export function DeepgramDoctor() {
     run("Token route", async () => {
       const token = await mintToken();
       return `status=${token.status}; expires_in=${token.expiresIn}; token_length=${token.tokenLength}`;
+    });
+
+  const bareBearerWebSocket = () =>
+    run("Bare WS via bearer subprotocol", async () => {
+      const token = await mintToken();
+      const startedAt = performance.now();
+      let openedAt: number | null = null;
+      let messages = 0;
+      const messageTypes: string[] = [];
+      let negotiatedProtocol = "";
+
+      return new Promise<string>((resolve, reject) => {
+        const socket = new WebSocket(BEARER_LISTEN_URL, [
+          "bearer",
+          token.accessToken,
+        ]);
+        let keepAlive: number | null = null;
+        let successTimer: number | null = null;
+        let settled = false;
+
+        const cleanup = () => {
+          if (keepAlive) window.clearInterval(keepAlive);
+          if (successTimer) window.clearTimeout(successTimer);
+        };
+
+        socket.onopen = () => {
+          openedAt = performance.now();
+          negotiatedProtocol = socket.protocol;
+          keepAlive = window.setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: "KeepAlive" }));
+            }
+          }, 5000);
+          successTimer = window.setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            const openMs = Math.round(openedAt! - startedAt);
+            socket.close(1000, "doctor complete");
+            resolve(
+              `open_ms=${openMs}; stayed_open_ms=30000; negotiated_protocol=${JSON.stringify(negotiatedProtocol)}; messages=${messages}; message_types=${JSON.stringify(messageTypes)}`,
+            );
+          }, 30_000);
+        };
+
+        socket.onmessage = (event: MessageEvent<string>) => {
+          messages += 1;
+          if (typeof event.data !== "string") {
+            return;
+          }
+          const message = parseDeepgramMessage(event.data);
+          if (message && messageTypes.length < 20) {
+            messageTypes.push(message.type);
+          }
+        };
+
+        socket.onerror = () => {
+          // CloseEvent carries the actionable browser-visible evidence.
+        };
+
+        socket.onclose = (event) => {
+          cleanup();
+          if (settled) return;
+          settled = true;
+          const elapsed = Math.round(performance.now() - startedAt);
+          reject(
+            new Error(
+              `open_ms=${openedAt === null ? "never" : Math.round(openedAt - startedAt)}; elapsed_ms=${elapsed}; negotiated_protocol=${JSON.stringify(negotiatedProtocol || socket.protocol)}; messages=${messages}; message_types=${JSON.stringify(messageTypes)}; close_code=${event.code}; close_reason=${JSON.stringify(event.reason)}; was_clean=${event.wasClean}`,
+            ),
+          );
+        };
+      });
     });
 
   const bareWebSocket = () =>
@@ -221,6 +296,101 @@ export function DeepgramDoctor() {
       return `mimeType=${selectedMimeType}; chunks=${chunks}; non_empty_chunks=${nonEmptyChunks}; total_bytes=${bytes}`;
     });
 
+  const fullPipelineBearer = () =>
+    run("Full pipeline 15s via bearer", async () => {
+      const token = await mintToken();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: AUDIO_CONSTRAINTS,
+      });
+      const recorderRef: { current: MediaRecorder | null } = {
+        current: null,
+      };
+      let chunks = 0;
+      let bytes = 0;
+      let results = 0;
+      const transcripts: string[] = [];
+      const startedAt = performance.now();
+
+      try {
+        const socket = new WebSocket(BEARER_LISTEN_URL, [
+          "bearer",
+          token.accessToken,
+        ]);
+
+        await new Promise<void>((resolve, reject) => {
+          let settled = false;
+          let completionTimer: number | null = null;
+          let pipelineStarted = false;
+          socket.onopen = () => {
+            if (pipelineStarted) return;
+            pipelineStarted = true;
+            const selectedMimeType = mimeType();
+            const recorder = new MediaRecorder(stream, {
+              mimeType: selectedMimeType,
+            });
+            recorderRef.current = recorder;
+            recorder.ondataavailable = (event) => {
+              if (
+                event.data.size > 0 &&
+                socket.readyState === WebSocket.OPEN
+              ) {
+                chunks += 1;
+                bytes += event.data.size;
+                socket.send(event.data);
+              }
+            };
+            recorder.start(250);
+            completionTimer = window.setTimeout(() => {
+              settled = true;
+              resolve();
+            }, 15_000);
+          };
+          socket.onmessage = (event: MessageEvent<string>) => {
+            if (typeof event.data !== "string") return;
+            const message = parseDeepgramMessage(event.data);
+            if (message?.type !== "Results") return;
+            results += 1;
+            const text = resultTranscript(
+              message as DeepgramResultsMessage,
+            ).trim();
+            if (text) transcripts.push(text);
+          };
+          socket.onerror = () => {
+            // CloseEvent reports code/reason.
+          };
+          socket.onclose = (event) => {
+            if (settled) return;
+            settled = true;
+            if (completionTimer !== null) {
+              window.clearTimeout(completionTimer);
+            }
+            reject(
+              new Error(
+                `handshake/open failure after ${Math.round(performance.now() - startedAt)}ms; negotiated_protocol=${JSON.stringify(socket.protocol)}; close_code=${event.code}; close_reason=${JSON.stringify(event.reason)}; was_clean=${event.wasClean}; chunks=${chunks}; bytes=${bytes}`,
+              ),
+            );
+          };
+        });
+
+        const recorder = recorderRef.current;
+        if (recorder && recorder.state !== "inactive") {
+          recorder.stop();
+        }
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "CloseStream" }));
+          await wait(500);
+          socket.close(1000, "doctor complete");
+        }
+        return `elapsed_ms=${Math.round(performance.now() - startedAt)}; negotiated_protocol=${JSON.stringify(socket.protocol)}; chunks=${chunks}; total_bytes=${bytes}; results_messages=${results}; transcripts=${JSON.stringify(transcripts)}`;
+      } finally {
+        const recorder = recorderRef.current;
+        if (recorder && recorder.state !== "inactive") {
+          recorder.stop();
+        }
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    });
+
   const fullPipeline = () =>
     run("Full pipeline 15s", async () => {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -331,6 +501,13 @@ export function DeepgramDoctor() {
         </Button>
         <Button
           variant="secondary"
+          onClick={bareBearerWebSocket}
+          disabled={running !== null}
+        >
+          Bare WS via bearer subprotocol
+        </Button>
+        <Button
+          variant="secondary"
           onClick={bareWebSocket}
           disabled={running !== null}
         >
@@ -349,6 +526,13 @@ export function DeepgramDoctor() {
           disabled={running !== null}
         >
           Full pipeline 15s
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={fullPipelineBearer}
+          disabled={running !== null}
+        >
+          Full pipeline 15s via bearer
         </Button>
       </div>
 

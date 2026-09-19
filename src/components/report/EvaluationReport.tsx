@@ -24,6 +24,7 @@ type EvaluationReportProps = {
   evaluation: StoredEvaluation | null;
   promptTokens: number;
   completionTokens: number;
+  ttsChars: number;
 };
 
 function scoreBar(score: number) {
@@ -49,6 +50,7 @@ export function EvaluationReport({
   evaluation,
   promptTokens,
   completionTokens,
+  ttsChars,
 }: EvaluationReportProps) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
@@ -297,6 +299,7 @@ export function EvaluationReport({
             {evaluation.stats.reconnectCount === 1 ? "" : "s"} ·{" "}
             {promptTokens.toLocaleString()} prompt /{" "}
             {completionTokens.toLocaleString()} completion tokens
+            {ttsChars > 0 ? ` · TTS chars: ${ttsChars.toLocaleString()}` : ""}
           </p>
 
           <p className="text-xs text-muted">

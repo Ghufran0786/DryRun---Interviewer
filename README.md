@@ -9,7 +9,7 @@ It runs on your machine with your own API keys. No accounts, no hosted service, 
 - **Whiteboard**: an embedded [Excalidraw](https://excalidraw.com) canvas, the same tool used in many real remote interviews. Snapshots are captured automatically when the board changes.
 - **Live speech-to-text**: your voice streams to Deepgram Nova-3 via a local proxy; the transcript appears live with interim results and timestamps. Custom keyterms improve recognition of your name and technical vocabulary.
 - **AI interviewer**: asks the problem, listens, probes trade-offs, nudges when you stall, and moves the interview through six phases (Requirements → Estimation → API → High-Level Design → Deep Dive → Wrap-up) on a time budget. It sees the current whiteboard image plus a text digest of your boxes and arrows.
-- **Voice**: the interviewer speaks its questions aloud (text-to-speech via OpenRouter). Barge-in: talk over it and it stops.
+- **Voice**: the interviewer speaks its questions aloud. **Browser voice** is free and the default (`window.speechSynthesis`). On Windows, use **Microsoft Edge** for the best built-in Natural voices. **OpenRouter** TTS is optional and billed per character. Barge-in: talk over it and it stops (with headphones).
 - **Analysis packet**: a monochrome PDF with the transcript, phase timeline, stats, every whiteboard snapshot with its digest, and an evaluation prompt on the last page. A zip export bundles the same material as markdown, JSON, and PNGs.
 - **Optional local evaluation**: an 8-dimension rubric scored by an LLM of your choice (off by default to save credits).
 
@@ -50,7 +50,7 @@ Both must be running for the microphone to work. If you see `EADDRINUSE`, an old
    - Classifier: a flash-lite class model (cheap, runs on every utterance)
    - Interviewer: a flash-class model with image input (the interviewer needs to see the board)
    - Evaluator: only used if you enable local evaluation
-2. **Settings → Voice.** Click **Test voice**. Leave "Using headphones" on if you are; turn it off if you use speakers (barge-in becomes manual only).
+2. **Settings → Voice.** Leave **Browser voice — free** selected (default), pick a voice if you like, and click **Test voice**. On Windows, Edge gives the richest Natural voices. OpenRouter is optional and billed per character. Leave "Using headphones" on if you are; turn it off if you use speakers (barge-in becomes manual only).
 3. **Settings → Keyterms.** Add your name and any vocabulary Deepgram keeps mishearing, one per line.
 4. **Settings → Candidate.** Enter your name and target level. Paste your resume text if you want evaluations to judge role fit.
 
@@ -66,7 +66,7 @@ Tips that materially change your score: open by stating your phase plan out loud
 
 ## Cost
 
-The interview loop is designed to be cheap: filler and short fragments never reach a model, context is bounded, and images are only sent when the board changes. A 45-minute mock on flash-class models plus TTS typically costs a few cents. Evaluation is free when you use the PDF with an external model. Token usage per session is shown on the dashboard.
+The interview loop is designed to be cheap: filler and short fragments never reach a model, context is bounded, and images are only sent when the board changes. Browser TTS is free; a 45-minute mock on flash-class models typically costs a few cents if you stay on browser voice. OpenRouter TTS adds per-character cost. Evaluation is free when you use the PDF with an external model. Token usage per session is shown on the dashboard; OpenRouter TTS character usage appears on the report when greater than zero.
 
 ## Architecture in one paragraph
 

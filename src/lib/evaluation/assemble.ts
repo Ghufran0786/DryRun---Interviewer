@@ -167,6 +167,16 @@ export function computeStats(
   let segmentStartMs = 0;
 
   for (const advance of advances) {
+    const target = parsePhaseAdvanceTarget(advance.text);
+    const fromMatch = advance.text.match(/\bfrom\s+([a-z]+)\s+to\s+([a-z]+)\./i);
+    const fromPhase = fromMatch?.[1]?.toLowerCase() ?? null;
+    const toPhase = fromMatch?.[2]?.toLowerCase() ?? target;
+    if (fromPhase && toPhase && fromPhase === toPhase) {
+      continue;
+    }
+    if (target && target === currentPhase && fromPhase === currentPhase) {
+      continue;
+    }
     const minutes = Math.max(
       0,
       Math.round(((advance.tsMs - segmentStartMs) / 60_000) * 10) / 10,
@@ -175,7 +185,6 @@ export function computeStats(
       phase: PHASE_LABELS[currentPhase] ?? currentPhase,
       minutes,
     });
-    const target = parsePhaseAdvanceTarget(advance.text);
     if (target && (INTERVIEW_PHASES as readonly string[]).includes(target)) {
       currentPhase = target as (typeof INTERVIEW_PHASES)[number];
     }

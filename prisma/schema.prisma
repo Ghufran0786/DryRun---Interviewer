@@ -23,6 +23,7 @@ model Session {
   phaseNotesJson   String?
   promptTokens     Int       @default(0)
   completionTokens Int       @default(0)
+  ttsChars         Int       @default(0)
   reconnectCount   Int       @default(0)
   closeCodesJson   String?
 
@@ -68,6 +69,9 @@ model Settings {
   interviewerVisionWarning String @default("")
   evaluatorModel       String @default("anthropic/claude-sonnet-4.5")
   ttsEnabled            Boolean @default(true)
+  ttsProvider           String  @default("browser")
+  browserVoiceName      String?
+  browserVoiceRate      Float   @default(1.0)
   ttsModel              String @default("mistralai/voxtral-mini-tts-2603")
   ttsVoice              String @default("en_paul_neutral")
   usingHeadphones       Boolean @default(true)

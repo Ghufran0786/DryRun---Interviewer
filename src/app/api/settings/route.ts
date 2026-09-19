@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { TTS_PROVIDERS } from "@/lib/types";
 import {
   isStrictness,
   isTargetLevel,
@@ -32,6 +33,9 @@ export async function PUT(request: Request) {
     interviewerModel?: string;
     evaluatorModel?: string;
     ttsEnabled?: boolean;
+    ttsProvider?: string;
+    browserVoiceName?: string | null;
+    browserVoiceRate?: number;
     ttsModel?: string;
     ttsVoice?: string;
     usingHeadphones?: boolean;
@@ -95,6 +99,46 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "ttsEnabled must be boolean" }, { status: 400 });
     }
     data.ttsEnabled = record.ttsEnabled;
+  }
+
+  if (typeof record.ttsProvider === "string") {
+    if (
+      !TTS_PROVIDERS.includes(
+        record.ttsProvider as (typeof TTS_PROVIDERS)[number],
+      )
+    ) {
+      return NextResponse.json({ error: "Invalid ttsProvider" }, { status: 400 });
+    }
+    data.ttsProvider = record.ttsProvider;
+  }
+
+  if (record.browserVoiceName !== undefined) {
+    if (record.browserVoiceName === null) {
+      data.browserVoiceName = null;
+    } else if (typeof record.browserVoiceName === "string") {
+      const name = record.browserVoiceName.trim();
+      data.browserVoiceName = name.length > 0 ? name.slice(0, 200) : null;
+    } else {
+      return NextResponse.json(
+        { error: "browserVoiceName must be a string or null" },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (record.browserVoiceRate !== undefined) {
+    if (
+      typeof record.browserVoiceRate !== "number" ||
+      !Number.isFinite(record.browserVoiceRate) ||
+      record.browserVoiceRate < 0.8 ||
+      record.browserVoiceRate > 1.2
+    ) {
+      return NextResponse.json(
+        { error: "browserVoiceRate must be a number from 0.8 to 1.2" },
+        { status: 400 },
+      );
+    }
+    data.browserVoiceRate = record.browserVoiceRate;
   }
 
   const ttsModel = parseOptionalString(record.ttsModel, 200);

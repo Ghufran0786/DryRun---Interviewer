@@ -42,6 +42,7 @@ export function useSnapshotCapture({
   const lastVisionSignatureRef = useRef<SceneSignature | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snapshotCountRef = useRef(0);
+  const lastBoardChangeAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (readOnly) {
@@ -82,8 +83,10 @@ export function useSnapshotCapture({
       const elements = api.getSceneElements() as readonly DryRunExcalidrawElement[];
       lastSnapshotSignatureRef.current = sceneSignature(elements);
       snapshotCountRef.current += 1;
+      const capturedAt = new Date(result.capturedAt);
+      lastBoardChangeAtRef.current = capturedAt.getTime();
       onSnapshotRecorded({
-        capturedAt: new Date(result.capturedAt),
+        capturedAt,
         count: snapshotCountRef.current,
       });
       return true;
@@ -105,6 +108,7 @@ export function useSnapshotCapture({
         if (!isMaterialChange(lastSnapshotSignatureRef.current, next)) {
           return;
         }
+        lastBoardChangeAtRef.current = Date.now();
         void runCapture("auto");
       }, SNAPSHOT_DEBOUNCE_MS);
     },
@@ -255,10 +259,15 @@ export function useSnapshotCapture({
     };
   }, []);
 
+  const getLastBoardChangeAt = useCallback((): number | null => {
+    return lastBoardChangeAtRef.current;
+  }, []);
+
   return {
     handleElementsChange: scheduleAutoCapture,
     manualCapture,
     finalCaptureIfNeeded,
     captureForVision,
+    getLastBoardChangeAt,
   };
 }

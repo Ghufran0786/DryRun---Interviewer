@@ -30,7 +30,8 @@ import {
   GENERATOR_TURN_LIMIT,
   isPrefilterFillerOnly,
   isPrefilterShortUtterance,
-  STALL_NUDGE_CAP,
+  STALL_NUDGE_CAP_PER_PHASE,
+  isHelpRequestUtterance,
 } from "@/lib/interviewTurnPrefilter";
 import { getSettings } from "@/lib/settings";
 import { NextResponse } from "next/server";
@@ -41,9 +42,18 @@ const TURN_TRIGGERS = [
   "utterance",
   "opening",
   "stall",
+  "stall_drawing",
+  "stall_maxgap",
   "wrapup",
+  "closing",
   "manual",
 ] as const;
+
+const STALL_TURN_TRIGGERS = new Set<TurnTrigger>([
+  "stall",
+  "stall_drawing",
+  "stall_maxgap",
+]);
 type TurnTrigger = (typeof TURN_TRIGGERS)[number];
 
 const TURN_FLOOR_MS = 20_000;
@@ -250,23 +260,41 @@ export async function POST(request: Request) {
       );
     }
 
-    if (turnTrigger === "stall") {
+    const lastPhaseAdvanceForStall = await prisma.transcriptEntry.findFirst({
+      where: {
+        sessionId,
+        kind: "phase_advance",
+        suppressed: false,
+      },
+      orderBy: [{ tsMs: "desc" }, { createdAt: "desc" }],
+      select: { tsMs: true },
+    });
+    const phaseStartTsMs = lastPhaseAdvanceForStall?.tsMs ?? 0;
+    if (
+      turnTrigger === "stall" ||
+      turnTrigger === "stall_drawing"
+    ) {
       const stallNudges = await prisma.transcriptEntry.count({
         where: {
           sessionId,
           role: "interviewer",
           kind: "nudge",
-          trigger: "stall",
+          tsMs: { gte: phaseStartTsMs },
+          trigger: { in: ["stall", "stall_drawing"] },
         },
       });
-      if (stallNudges >= STALL_NUDGE_CAP) {
+      if (stallNudges >= STALL_NUDGE_CAP_PER_PHASE) {
         console.log("Interviewer turn skipped:", {
           sessionId,
           reason: "stall:capped",
           stallNudges,
+          phaseStartTsMs,
         });
         return new Response(null, { status: 204 });
       }
+    }
+    if (turnTrigger === "stall_maxgap") {
+      console.log("Interviewer stall:maxgap", { sessionId, phaseStartTsMs });
     }
     if (!isInterviewPhase(session.currentPhase)) {
       return NextResponse.json(
@@ -275,12 +303,16 @@ export async function POST(request: Request) {
       );
     }
 
-    if (turnTrigger === "opening" || turnTrigger === "wrapup") {
+    if (
+      turnTrigger === "opening" ||
+      turnTrigger === "wrapup" ||
+      turnTrigger === "closing"
+    ) {
       const duplicate = await prisma.transcriptEntry.findFirst({
         where: {
           sessionId,
           role: "interviewer",
-          kind: turnTrigger,
+          trigger: turnTrigger,
           suppressed: false,
         },
         select: { id: true },
@@ -384,6 +416,9 @@ export async function POST(request: Request) {
       if (decision.action === "stay_silent") {
         return new Response(null, { status: 204 });
       }
+      if (session.currentPhase === "wrapup") {
+        decision.advance_phase = false;
+      }
     }
 
     if (
@@ -399,7 +434,8 @@ export async function POST(request: Request) {
     }
 
     const floorApplies =
-      turnTrigger === "stall" ||
+      (STALL_TURN_TRIGGERS.has(turnTrigger) &&
+        turnTrigger !== "stall_maxgap") ||
       (turnTrigger === "utterance" &&
         decision?.action !== "answer_question");
     if (floorApplies) {
@@ -442,8 +478,20 @@ export async function POST(request: Request) {
       settings.interviewDurationMin,
     );
     const advancePhase =
-      decision?.advance_phase === true ||
-      phaseElapsedMin > phaseBudgetMinValue;
+      session.currentPhase !== "wrapup" &&
+      (decision?.advance_phase === true ||
+        phaseElapsedMin > phaseBudgetMinValue);
+    const helpRequestRows = await prisma.transcriptEntry.findMany({
+      where: {
+        sessionId,
+        role: "candidate",
+        suppressed: false,
+      },
+      select: { text: true },
+    });
+    const helpRequestCount = helpRequestRows.filter((row) =>
+      isHelpRequestUtterance(row.text),
+    ).length;
     const baseInstruction =
       turnTrigger === "utterance" &&
       decision &&
@@ -485,11 +533,13 @@ export async function POST(request: Request) {
     const textOnlyMessages = generatorMessages({
       ...generatorContext,
       instruction,
+      helpRequestCount,
     });
     const fallbackMessages = boardImageBase64
       ? generatorMessages({
           ...generatorContext,
           instruction: fallbackInstruction,
+          helpRequestCount,
         })
       : textOnlyMessages;
     const lastMessage = textOnlyMessages[textOnlyMessages.length - 1];
@@ -565,9 +615,11 @@ export async function POST(request: Request) {
     const kind =
       turnTrigger === "opening"
         ? "opening"
-        : turnTrigger === "wrapup"
-          ? "wrapup"
-          : turnTrigger === "stall"
+        : turnTrigger === "wrapup" || turnTrigger === "closing"
+          ? turnTrigger === "closing"
+            ? "wrapup"
+            : "wrapup"
+          : STALL_TURN_TRIGGERS.has(turnTrigger)
             ? "nudge"
             : action && action !== "stay_silent"
               ? kindForAction(action)
@@ -599,7 +651,8 @@ export async function POST(request: Request) {
           suppressed: false,
         },
       });
-      if (nextPhase) {
+      let phaseAdvanceEntry: typeof interviewerEntry | null = null;
+      if (nextPhase && nextPhase !== session.currentPhase) {
         const note =
           parsed.phaseNote ??
           `${session.currentPhase}: ${decision?.reason ?? "phase completed"}`;
@@ -610,7 +663,7 @@ export async function POST(request: Request) {
             phaseNotesJson: JSON.stringify([...phaseNotes, note]),
           },
         });
-        await tx.transcriptEntry.create({
+        phaseAdvanceEntry = await tx.transcriptEntry.create({
           data: {
             sessionId,
             role: "system",
@@ -623,6 +676,7 @@ export async function POST(request: Request) {
       }
       return {
         entry: interviewerEntry,
+        phaseAdvanceEntry,
         persistedCandidateThroughTsMs: latestCandidate?.tsMs ?? -1,
       };
     });
@@ -656,10 +710,11 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         entry: persisted.entry,
+        phaseAdvanceEntry: persisted.phaseAdvanceEntry,
         persistedCandidateThroughTsMs:
           persisted.persistedCandidateThroughTsMs,
         currentPhase: nextPhase ?? session.currentPhase,
-        phaseAdvanced: Boolean(nextPhase),
+        phaseAdvanced: Boolean(persisted.phaseAdvanceEntry),
         timing,
       },
       { status: 201 },

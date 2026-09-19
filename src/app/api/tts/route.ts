@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import {
   callSpeech,
@@ -42,6 +43,15 @@ export async function POST(request: Request) {
   }
 
   const settings = await getSettings();
+  if (settings.ttsProvider !== "openrouter") {
+    return NextResponse.json(
+      {
+        error: "OpenRouter TTS is disabled — use browser voice in Settings",
+        code: "tts_provider_browser",
+      },
+      { status: 422 },
+    );
+  }
   if (!settings.ttsModel.trim() || !settings.ttsVoice.trim()) {
     return NextResponse.json(
       {
@@ -59,6 +69,15 @@ export async function POST(request: Request) {
       voice: settings.ttsVoice,
       timeoutMs: 20_000,
     });
+    const sessionId =
+      typeof record.sessionId === "string" ? record.sessionId.trim() : "";
+    if (sessionId) {
+      await prisma.session.updateMany({
+        where: { id: sessionId },
+        data: { ttsChars: { increment: text.length } },
+      });
+    }
+
     if (!globalForTts.dryRunLoggedFirstTtsSuccess) {
       globalForTts.dryRunLoggedFirstTtsSuccess = true;
       console.log("OpenRouter TTS first success:", {

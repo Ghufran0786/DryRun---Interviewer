@@ -1,0 +1,7 @@
+Read PROJECT.md before any change. Never violate PINNED FACTS.
+Strict monochrome UI (see PROJECT.md design system). No color.
+TypeScript strict; no `any` unless justified in the report.
+Do not install dependencies beyond the approved stack without flagging it.
+Do not build ahead of the current phase.
+End every run with a report: what changed, what couldn't be done, exact steps to verify.
+Migration folder names must use the real current date (yyyyMMddHHmmss) and sort after every existing migration. Verify with ls prisma/migrations before creating one.

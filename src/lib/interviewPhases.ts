@@ -34,9 +34,14 @@ export function isInterviewPhase(value: unknown): value is InterviewPhase {
   );
 }
 
-export function nextInterviewPhase(phase: InterviewPhase): InterviewPhase {
+export function nextInterviewPhase(
+  phase: InterviewPhase,
+): InterviewPhase | null {
   const index = INTERVIEW_PHASES.indexOf(phase);
-  return INTERVIEW_PHASES[Math.min(index + 1, INTERVIEW_PHASES.length - 1)];
+  if (index < 0 || index >= INTERVIEW_PHASES.length - 1) {
+    return null;
+  }
+  return INTERVIEW_PHASES[index + 1];
 }
 
 export function scaledPhaseBudgets(durationMin: number): string {

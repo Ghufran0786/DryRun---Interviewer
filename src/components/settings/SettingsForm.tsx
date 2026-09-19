@@ -3,13 +3,20 @@
 import { Button } from "@/components/ui/Button";
 import { FieldInput, FieldLabel, FieldTextarea } from "@/components/ui/Field";
 import {
+  sortVoicesForSettings,
+  speakBrowserText,
+  waitForVoices,
+} from "@/lib/browserSpeech";
+import {
   STRICTNESS_LEVELS,
   TARGET_LEVELS,
+  TTS_PROVIDERS,
   type Strictness,
   type TargetLevel,
+  type TtsProvider,
 } from "@/lib/types";
 import type { Settings } from "@prisma/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type SettingsFormProps = {
   initial: Settings;
@@ -33,6 +40,20 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   );
   const [evaluatorModel, setEvaluatorModel] = useState(initial.evaluatorModel);
   const [ttsEnabled, setTtsEnabled] = useState(initial.ttsEnabled);
+  const [ttsProvider, setTtsProvider] = useState<TtsProvider>(
+    TTS_PROVIDERS.includes(initial.ttsProvider as TtsProvider)
+      ? (initial.ttsProvider as TtsProvider)
+      : "browser",
+  );
+  const [browserVoiceName, setBrowserVoiceName] = useState(
+    initial.browserVoiceName ?? "",
+  );
+  const [browserVoiceRate, setBrowserVoiceRate] = useState(
+    initial.browserVoiceRate,
+  );
+  const [browserVoices, setBrowserVoices] = useState<
+    { name: string; lang: string; isNatural: boolean }[]
+  >([]);
   const [ttsModel, setTtsModel] = useState(initial.ttsModel);
   const [ttsVoice, setTtsVoice] = useState(initial.ttsVoice);
   const [usingHeadphones, setUsingHeadphones] = useState(
@@ -70,6 +91,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const inputClass =
     "w-full rounded-[6px] border border-border bg-white px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-foreground";
 
+  useEffect(() => {
+    void waitForVoices().then((voices) => {
+      setBrowserVoices(sortVoicesForSettings(voices));
+    });
+  }, []);
+
   async function saveSettings(): Promise<boolean> {
     const res = await fetch("/api/settings", {
         method: "PUT",
@@ -81,6 +108,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           interviewerModel,
           evaluatorModel,
           ttsEnabled,
+          ttsProvider,
+          browserVoiceName: browserVoiceName.trim() || null,
+          browserVoiceRate,
           ttsModel,
           ttsVoice,
           usingHeadphones,
@@ -149,33 +179,44 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     try {
       if (!(await saveSettings())) return;
       const startedAt = performance.now();
-      const response = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: "Hello. I am your DryRun interviewer. Let us begin.",
-        }),
-      });
-      if (!response.ok) {
-        const payload: unknown = await response.json();
-        const message =
-          payload &&
-          typeof payload === "object" &&
-          typeof (payload as Record<string, unknown>).error === "string"
-            ? String((payload as Record<string, unknown>).error)
-            : `Voice request failed (HTTP ${response.status})`;
-        throw new Error(message);
+      const sample =
+        "Hello. I am your DryRun interviewer. Let us begin.";
+      if (ttsProvider === "browser") {
+        await new Promise<void>((resolve, reject) => {
+          void speakBrowserText(sample, {
+            voiceName: browserVoiceName.trim() || null,
+            rate: browserVoiceRate,
+            onEnd: () => resolve(),
+            onError: (message) => reject(new Error(message)),
+          });
+        });
+      } else {
+        const response = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: sample }),
+        });
+        if (!response.ok) {
+          const payload: unknown = await response.json();
+          const message =
+            payload &&
+            typeof payload === "object" &&
+            typeof (payload as Record<string, unknown>).error === "string"
+              ? String((payload as Record<string, unknown>).error)
+              : `Voice request failed (HTTP ${response.status})`;
+          throw new Error(message);
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.addEventListener("ended", () => URL.revokeObjectURL(url), {
+          once: true,
+        });
+        audio.addEventListener("error", () => URL.revokeObjectURL(url), {
+          once: true,
+        });
+        await audio.play();
       }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audio.addEventListener("ended", () => URL.revokeObjectURL(url), {
-        once: true,
-      });
-      audio.addEventListener("error", () => URL.revokeObjectURL(url), {
-        once: true,
-      });
-      await audio.play();
       setVoiceResult(`OK (${Math.round(performance.now() - startedAt)}ms)`);
       setSaved(true);
     } catch (cause) {
@@ -271,20 +312,90 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             </span>
           </span>
         </label>
-        <FieldInput
-          label="TTS model"
-          name="ttsModel"
-          value={ttsModel}
-          onChange={(event) => setTtsModel(event.target.value)}
-          hint="OpenRouter speech model ID."
-        />
-        <FieldInput
-          label="TTS voice"
-          name="ttsVoice"
-          value={ttsVoice}
-          onChange={(event) => setTtsVoice(event.target.value)}
-          hint="Voice identifier supported by the selected TTS model."
-        />
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Provider
+          </p>
+          <label className="flex items-start gap-3 text-sm text-foreground">
+            <input
+              type="radio"
+              name="ttsProvider"
+              checked={ttsProvider === "browser"}
+              onChange={() => setTtsProvider("browser")}
+              className="mt-0.5 h-4 w-4 accent-foreground"
+            />
+            <span>Browser voice — free</span>
+          </label>
+          <label className="flex items-start gap-3 text-sm text-foreground">
+            <input
+              type="radio"
+              name="ttsProvider"
+              checked={ttsProvider === "openrouter"}
+              onChange={() => setTtsProvider("openrouter")}
+              className="mt-0.5 h-4 w-4 accent-foreground"
+            />
+            <span>OpenRouter — paid</span>
+          </label>
+        </div>
+        {ttsProvider === "browser" ? (
+          <>
+            <div>
+              <FieldLabel label="Browser voice" htmlFor="browserVoiceName" />
+              <select
+                id="browserVoiceName"
+                className={inputClass}
+                value={browserVoiceName}
+                onChange={(event) => setBrowserVoiceName(event.target.value)}
+              >
+                <option value="">Automatic (English / Natural)</option>
+                {browserVoices.map((voice) => (
+                  <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
+                    {voice.name} ({voice.lang})
+                    {voice.isNatural ? " — Natural" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <FieldLabel
+                label={`Speech rate (${browserVoiceRate.toFixed(2)})`}
+                htmlFor="browserVoiceRate"
+              />
+              <input
+                id="browserVoiceRate"
+                type="range"
+                min={0.8}
+                max={1.2}
+                step={0.05}
+                value={browserVoiceRate}
+                onChange={(event) =>
+                  setBrowserVoiceRate(Number(event.target.value))
+                }
+                className="w-full accent-foreground"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-muted">
+              Billed per character on OpenRouter.
+            </p>
+            <FieldInput
+              label="TTS model"
+              name="ttsModel"
+              value={ttsModel}
+              onChange={(event) => setTtsModel(event.target.value)}
+              hint="OpenRouter speech model ID."
+            />
+            <FieldInput
+              label="TTS voice"
+              name="ttsVoice"
+              value={ttsVoice}
+              onChange={(event) => setTtsVoice(event.target.value)}
+              hint="Voice identifier supported by the selected TTS model."
+            />
+          </>
+        )}
         <label className="flex items-start gap-3 text-sm text-foreground">
           <input
             type="checkbox"

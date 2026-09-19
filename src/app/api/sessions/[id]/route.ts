@@ -115,6 +115,15 @@ export async function PATCH(request: Request, context: RouteContext) {
         { status: 400 },
       );
     }
+    if (
+      existing.currentPhase === "wrapup" &&
+      record.currentPhase !== "wrapup"
+    ) {
+      return NextResponse.json(
+        { error: "Wrap-up phase is terminal" },
+        { status: 409 },
+      );
+    }
     data.currentPhase = record.currentPhase;
   }
 

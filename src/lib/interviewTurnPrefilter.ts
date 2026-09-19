@@ -57,7 +57,41 @@ export function isPrefilterFillerOnly(text: string): boolean {
   return tokens.every((token) => PREFILTER_FILLER_WORDS.has(token));
 }
 
-export const STALL_NUDGE_CAP = 6;
+export const STALL_NUDGE_CAP_PER_PHASE = 3;
+export const STALL_MAX_GAP_MS = 120_000;
+export const STALL_DRAWING_WINDOW_MS = 60_000;
+
+const STALL_NUDGE_TRIGGERS = new Set([
+  "stall",
+  "stall_drawing",
+  "stall_maxgap",
+]);
+
+export function isHelpRequestUtterance(text: string): boolean {
+  return /can you (please )?(help|tell)|not sure|am i (right|wrong)|is (this|my .*) (correct|fine|okay)/i.test(
+    text,
+  );
+}
+
+export function countStallNudgesSincePhaseStart(
+  entries: Array<{
+    role: string;
+    kind: string | null;
+    trigger?: string | null;
+    tsMs: number;
+  }>,
+  phaseStartTsMs: number,
+): number {
+  return entries.filter(
+    (entry) =>
+      entry.role === "interviewer" &&
+      entry.kind === "nudge" &&
+      typeof entry.trigger === "string" &&
+      STALL_NUDGE_TRIGGERS.has(entry.trigger) &&
+      entry.trigger !== "stall_maxgap" &&
+      entry.tsMs >= phaseStartTsMs,
+  ).length;
+}
 
 export const CLASSIFIER_TURN_LIMIT = 4;
 export const GENERATOR_TURN_LIMIT = 8;

@@ -38,6 +38,11 @@ export default async function InterviewPage({ params }: PageProps) {
         keyterms={settings.keyterms}
         interviewDurationMin={settings.interviewDurationMin}
         ttsEnabled={settings.ttsEnabled}
+        ttsProvider={
+          settings.ttsProvider === "openrouter" ? "openrouter" : "browser"
+        }
+        browserVoiceName={settings.browserVoiceName}
+        browserVoiceRate={settings.browserVoiceRate}
         usingHeadphones={settings.usingHeadphones}
         currentPhase={
           isInterviewPhase(session.currentPhase)

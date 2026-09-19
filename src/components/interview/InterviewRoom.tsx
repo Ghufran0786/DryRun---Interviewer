@@ -22,7 +22,7 @@ import { useTranscriptPersistence } from "@/hooks/useTranscriptPersistence";
 import type { InterviewPhase } from "@/lib/interviewPhases";
 import type { ScenePayload } from "@/lib/scenePayload";
 import { digestElements } from "@/lib/sceneDigest";
-import type { TargetLevel } from "@/lib/types";
+import type { TargetLevel, TtsProvider } from "@/lib/types";
 import type { TranscriptKind } from "@/lib/types";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
@@ -56,6 +56,9 @@ export type InterviewRoomProps = {
   keyterms: string;
   interviewDurationMin: number;
   ttsEnabled: boolean;
+  ttsProvider: TtsProvider;
+  browserVoiceName: string | null;
+  browserVoiceRate: number;
   usingHeadphones: boolean;
   currentPhase: InterviewPhase;
   status: string;
@@ -84,6 +87,9 @@ export function InterviewRoom({
   keyterms,
   interviewDurationMin,
   ttsEnabled: initialTtsEnabled,
+  ttsProvider,
+  browserVoiceName,
+  browserVoiceRate,
   usingHeadphones,
   currentPhase: initialCurrentPhase,
   status,
@@ -102,6 +108,7 @@ export function InterviewRoom({
     useState<string | null>(null);
 
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
+  const onInterviewTimeExpiredRef = useRef<() => void>(() => {});
 
   const {
     finals,
@@ -132,6 +139,10 @@ export function InterviewRoom({
   const interviewerVoice = useInterviewerVoice({
     enabled: ttsEnabled,
     usingHeadphones,
+    ttsProvider,
+    browserVoiceName,
+    browserVoiceRate,
+    sessionId,
     onSpeakingChange: handleSpeakingChange,
   });
   const observeVoiceInterim = interviewerVoice.observeInterim;
@@ -145,9 +156,11 @@ export function InterviewRoom({
     handlePersistedEntry,
   );
 
+  const lastSnapshotCapturedAtRef = useRef<number | null>(null);
   const onSnapshotRecorded = useCallback(
     (meta: { capturedAt: Date; count: number }) => {
       setSnapshotCount(meta.count);
+      lastSnapshotCapturedAtRef.current = meta.capturedAt.getTime();
     },
     [],
   );
@@ -157,6 +170,7 @@ export function InterviewRoom({
     manualCapture,
     finalCaptureIfNeeded,
     captureForVision,
+    getLastBoardChangeAt,
   } =
     useSnapshotCapture({
       sessionId,
@@ -261,8 +275,17 @@ export function InterviewRoom({
     finals,
     getSceneDigest,
     prepareVisionTurn: captureForVision,
+    getLastBoardChangeAt: () => {
+      const fromBoard = getLastBoardChangeAt();
+      const fromSnapshot = lastSnapshotCapturedAtRef.current;
+      if (fromBoard === null && fromSnapshot === null) {
+        return null;
+      }
+      return Math.max(fromBoard ?? 0, fromSnapshot ?? 0);
+    },
     persistInjectedCandidate,
     appendEntry: appendInterviewerEntry,
+    onInterviewTimeExpired: () => onInterviewTimeExpiredRef.current(),
   });
   const submitInterviewerUtterance = interviewerLoop.submitUtterance;
 
@@ -381,6 +404,12 @@ export function InterviewRoom({
       );
     }
   }
+
+  useEffect(() => {
+    onInterviewTimeExpiredRef.current = () => {
+      void endInterview();
+    };
+  });
 
   async function endInterview() {
     setEnding(true);

@@ -41,6 +41,14 @@ const CLASSIFIER_ACTIONS: readonly ClassifierAction[] = [
   "answer_question",
 ];
 
+const PHASE_ANCHORING = `CURRENT PHASE: {phase}. Stay inside it. Phase notes from earlier phases are context, not a to-do list: you may mention an earlier gap at most once in a single clause ('we never nailed down the endpoints, keep that in mind'), then continue with the current phase. Never say 'let's move on to' a phase that is not the next one, and never reopen a completed phase as a topic.`;
+
+const WRAP_UP_SCRIPT = `WRAP-UP RULES: no new design questions. Turn 1: summarize the candidate's design in two sentences, naming the strongest decision. Turn 2: ask 'If you had ten more minutes, what would you change or add?' Turn 3: ask if the candidate has questions, then close. If the candidate raises a new topic, respond in one sentence and return to the script.`;
+
+const HELP_REQUEST_POLICY = `HELP REQUESTS: if the candidate explicitly asks you for the answer or asks whether they are right, count it. Requests 1 and 2: respond with one Socratic question that points at the relevant concept, no answer. Request 3 and beyond: say 'I'll note you'd like a hint. Give me your best guess and we'll move on.' Never state the answer. Only use kind=answer to clarify what YOUR question meant, never to supply design content.`;
+
+const GARBLED_PROPER_NOUNS = `The transcript is speech-to-text. If the candidate names a technology or component you do not recognize, ask once: 'I didn't catch that component name, could you repeat it?' If it is still unclear, drop it and never ask about it again.`;
+
 export function interviewerPersona(
   session: PromptSession,
   settings: PromptSettings,
@@ -148,15 +156,25 @@ export function generatorMessages(input: {
   turns: ContextTurn[];
   sceneDigest: string;
   instruction: string;
+  helpRequestCount: number;
 }): ChatMessage[] {
   const phase = input.session.currentPhase as InterviewPhase;
+  const phaseAnchoring = PHASE_ANCHORING.replace("{phase}", phase);
+  const wrapNotes =
+    phase === "wrapup"
+      ? [WRAP_UP_SCRIPT]
+      : input.phaseNotes;
   const systemHeader = [
     interviewerPersona(input.session, input.settings),
+    phaseAnchoring,
+    HELP_REQUEST_POLICY,
+    GARBLED_PROPER_NOUNS,
     `Current phase: ${PHASE_LABELS[phase] ?? input.session.currentPhase}`,
     `Elapsed: ${Math.floor(input.elapsedMs / 1000)} seconds`,
     `Current phase elapsed: ${input.phaseElapsedMin} min of ${input.phaseBudgetMin} min budget.`,
     `Interview duration: ${input.settings.interviewDurationMin} minutes`,
-    `Completed phase notes:\n${input.phaseNotes.length > 0 ? input.phaseNotes.join("\n") : "(none)"}`,
+    `Help requests so far (candidate finals matching help-seeking): ${input.helpRequestCount}`,
+    `Completed phase notes:\n${wrapNotes.length > 0 ? wrapNotes.join("\n") : "(none)"}`,
     `Current scene digest:\n${input.sceneDigest || "(empty whiteboard)"}`,
   ].join("\n\n");
 
@@ -178,18 +196,24 @@ export function generatorMessages(input: {
 }
 
 export function triggerInstruction(input: {
-  trigger: "opening" | "stall" | "wrapup" | "manual";
+  trigger: "opening" | "stall" | "stall_drawing" | "stall_maxgap" | "wrapup" | "closing" | "manual";
   problem: string;
   currentPhase: string;
 }): string {
   if (input.trigger === "opening") {
     return `Open the interview now. State this exact problem clearly: "${input.problem}". Set brief expectations, then hand control to the candidate with one opening question.`;
   }
-  if (input.trigger === "stall") {
+  if (input.trigger === "stall_drawing") {
+    return `The candidate has been silent for 50 seconds but the whiteboard changed recently. They are actively drawing in the ${input.currentPhase} phase. Ask them to narrate what they are drawing. Do not open a new content question.`;
+  }
+  if (input.trigger === "stall" || input.trigger === "stall_maxgap") {
     return `The candidate has been silent for 50 seconds. Give a gentle nudge that refers to where they left off in the ${input.currentPhase} phase. Do not solve it.`;
   }
   if (input.trigger === "wrapup") {
-    return "Time is nearly over. Ask one final wrap-up question, then close the interview briefly and professionally.";
+    return "Begin wrap-up using the WRAP-UP RULES in your system prompt. Turn 1 only: summarize the candidate's design in two sentences and name the strongest decision.";
+  }
+  if (input.trigger === "closing") {
+    return "Close the interview professionally in one or two sentences. Thank the candidate. No new design questions.";
   }
   return `Respond as the interviewer at the current point in the ${input.currentPhase} phase. Ask one useful question that moves the interview forward.`;
 }

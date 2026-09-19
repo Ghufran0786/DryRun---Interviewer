@@ -6,11 +6,24 @@ import { isInterviewPhase } from "@/lib/interviewPhases";
 import type { TranscriptFinal } from "@/components/transcript/TranscriptStore";
 import type { UtteranceTiming } from "@/hooks/useDeepgramLive";
 import { elapsedMsSinceSessionStart } from "@/lib/sessionTime";
-import { STALL_NUDGE_CAP } from "@/lib/interviewTurnPrefilter";
+import {
+  STALL_DRAWING_WINDOW_MS,
+  STALL_MAX_GAP_MS,
+  STALL_NUDGE_CAP_PER_PHASE,
+  countStallNudgesSincePhaseStart,
+} from "@/lib/interviewTurnPrefilter";
 import type { PreparedVisionTurn } from "@/lib/visionTurn";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type TurnTrigger = "utterance" | "opening" | "stall" | "wrapup" | "manual";
+type TurnTrigger =
+  | "utterance"
+  | "opening"
+  | "stall"
+  | "stall_drawing"
+  | "stall_maxgap"
+  | "wrapup"
+  | "closing"
+  | "manual";
 
 type PendingTurn = {
   trigger: TurnTrigger;
@@ -21,6 +34,7 @@ type PendingTurn = {
 
 type TurnResponse = {
   entry: Omit<TranscriptFinal, "source">;
+  phaseAdvanceEntry?: Omit<TranscriptFinal, "source"> | null;
   currentPhase: InterviewPhase;
   phaseAdvanced: boolean;
   persistedCandidateThroughTsMs: number;
@@ -56,8 +70,10 @@ type UseInterviewerLoopOptions = {
   finals: TranscriptFinal[];
   getSceneDigest: () => string;
   prepareVisionTurn: () => Promise<PreparedVisionTurn>;
+  getLastBoardChangeAt: () => number | null;
   persistInjectedCandidate: (text: string, tsMs: number) => void;
   appendEntry: (entry: TranscriptFinal) => void;
+  onInterviewTimeExpired?: () => void;
 };
 
 const STALL_SILENCE_MS =
@@ -65,13 +81,14 @@ const STALL_SILENCE_MS =
 const STALL_COOLDOWN_MS =
   process.env.NODE_ENV === "development" ? 1_000 : 120_000;
 
-function countStallNudges(finals: TranscriptFinal[]): number {
-  return finals.filter(
-    (entry) =>
-      entry.role === "interviewer" &&
-      entry.kind === "nudge" &&
-      entry.trigger === "stall",
-  ).length;
+function phaseAdvanceStartTsMs(finals: TranscriptFinal[]): number {
+  let latest = 0;
+  for (const entry of finals) {
+    if (entry.role === "system" && entry.kind === "phase_advance") {
+      latest = Math.max(latest, entry.tsMs);
+    }
+  }
+  return latest;
 }
 
 export function useInterviewerLoop({
@@ -85,8 +102,10 @@ export function useInterviewerLoop({
   finals,
   getSceneDigest,
   prepareVisionTurn,
+  getLastBoardChangeAt,
   persistInjectedCandidate,
   appendEntry,
+  onInterviewTimeExpired,
 }: UseInterviewerLoopOptions) {
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +123,12 @@ export function useInterviewerLoop({
   const wrapupRequestedRef = useRef(
     finals.some((entry) => entry.kind === "wrapup"),
   );
+  const closingRequestedRef = useRef(
+    finals.some(
+      (entry) => entry.role === "interviewer" && entry.trigger === "closing",
+    ),
+  );
+  const lastInterviewerWallAtRef = useRef(0);
   const sendRef = useRef<(turn: PendingTurn) => Promise<void>>(async () => {});
 
   const recordDiagnostic = useCallback(
@@ -216,6 +241,16 @@ export function useInterviewerLoop({
           isInterviewPhase(result.currentPhase)
         ) {
           appendEntry({ ...result.entry, source: "database" });
+          lastInterviewerWallAtRef.current = Date.now();
+          if (result.phaseAdvanceEntry) {
+            appendEntry({
+              ...result.phaseAdvanceEntry,
+              source: "database",
+            });
+          }
+          if (turn.trigger === "closing") {
+            onInterviewTimeExpired?.();
+          }
           recordDiagnostic("transcript-row-persisted", {
             id: result.entry.id,
             role: result.entry.role,
@@ -317,6 +352,7 @@ export function useInterviewerLoop({
       appendEntry,
       getSceneDigest,
       interviewerSpeaking,
+      onInterviewTimeExpired,
       prepareVisionTurn,
       recordDiagnostic,
       resetWatchdog,
@@ -486,9 +522,12 @@ export function useInterviewerLoop({
   }, [interviewerSpeaking, recordDiagnostic, status]);
 
   useEffect(() => {
+    const stallWatchdogArmed =
+      micState === "listening" ||
+      process.env.NODE_ENV === "development";
     if (
       status !== "active" ||
-      micState !== "listening" ||
+      !stallWatchdogArmed ||
       interviewerSpeaking
     ) {
       return;
@@ -499,19 +538,49 @@ export function useInterviewerLoop({
         now - watchdogResetAtRef.current >= STALL_SILENCE_MS &&
         now - lastStallRef.current >= STALL_COOLDOWN_MS
       ) {
-        if (countStallNudges(finals) >= STALL_NUDGE_CAP) {
+        const phaseStartTsMs = phaseAdvanceStartTsMs(finals);
+        const phaseStallNudges = countStallNudgesSincePhaseStart(
+          finals,
+          phaseStartTsMs,
+        );
+        const capped = phaseStallNudges >= STALL_NUDGE_CAP_PER_PHASE;
+        const lastInterviewerWallAt =
+          lastInterviewerWallAtRef.current > 0
+            ? lastInterviewerWallAtRef.current
+            : watchdogResetAtRef.current;
+        const sinceLastInterviewerMs = now - lastInterviewerWallAt;
+        if (capped && sinceLastInterviewerMs >= STALL_MAX_GAP_MS) {
+          lastStallRef.current = now;
+          recordDiagnostic("stall-maxgap", {
+            sinceLastInterviewerMs,
+            phaseStallNudges,
+          });
+          console.log("stall:maxgap");
+          void sendRef.current({
+            trigger: "stall_maxgap",
+            tsMs: elapsedMsSinceSessionStart(startedAtMs),
+          });
+          return;
+        }
+        if (capped) {
           recordDiagnostic("stall-capped", {
-            stallNudges: countStallNudges(finals),
+            stallNudges: phaseStallNudges,
+            phaseStartTsMs,
           });
           console.log("stall:capped");
           return;
         }
         lastStallRef.current = now;
+        const boardChangedAt = getLastBoardChangeAt();
+        const drawingRecent =
+          boardChangedAt !== null &&
+          now - boardChangedAt <= STALL_DRAWING_WINDOW_MS;
         recordDiagnostic("stall-timer-fire", {
           silentMs: now - watchdogResetAtRef.current,
+          trigger: drawingRecent ? "stall_drawing" : "stall",
         });
         void sendRef.current({
-          trigger: "stall",
+          trigger: drawingRecent ? "stall_drawing" : "stall",
           tsMs: elapsedMsSinceSessionStart(startedAtMs),
         });
       }
@@ -521,10 +590,33 @@ export function useInterviewerLoop({
     interviewerSpeaking,
     micState,
     recordDiagnostic,
+    getLastBoardChangeAt,
     startedAtMs,
     status,
     finals,
   ]);
+
+  useEffect(() => {
+    if (status !== "active" || closingRequestedRef.current) {
+      return;
+    }
+    const delayMs = Math.max(
+      0,
+      interviewDurationMin * 60_000 -
+        elapsedMsSinceSessionStart(startedAtMs),
+    );
+    const timer = window.setTimeout(() => {
+      if (closingRequestedRef.current) {
+        return;
+      }
+      closingRequestedRef.current = true;
+      void sendRef.current({
+        trigger: "closing",
+        tsMs: elapsedMsSinceSessionStart(startedAtMs),
+      });
+    }, delayMs);
+    return () => window.clearTimeout(timer);
+  }, [interviewDurationMin, startedAtMs, status]);
 
   useEffect(() => {
     if (

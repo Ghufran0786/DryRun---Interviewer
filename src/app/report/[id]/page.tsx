@@ -117,6 +117,7 @@ export default async function ReportPage({ params }: PageProps) {
             evaluation={evaluation}
             promptTokens={session.promptTokens}
             completionTokens={session.completionTokens}
+            ttsChars={session.ttsChars}
           />
         </div>
 

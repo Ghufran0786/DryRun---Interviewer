@@ -20,3 +20,6 @@ export type TranscriptKind = (typeof TRANSCRIPT_KINDS)[number];
 export const STRICTNESS_LEVELS = ["Lenient", "Standard", "Bar-raiser"] as const;
 export type Strictness = (typeof STRICTNESS_LEVELS)[number];
 
+export const TTS_PROVIDERS = ["browser", "openrouter"] as const;
+export type TtsProvider = (typeof TTS_PROVIDERS)[number];
+
