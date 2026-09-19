@@ -11,19 +11,19 @@ export function FieldLabel({ label, htmlFor, hint }: FieldLabelProps) {
     <div className="mb-1.5">
       <label
         htmlFor={htmlFor}
-        className="block text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]"
+        className="block text-[11px] font-semibold uppercase tracking-wider text-muted"
       >
         {label}
       </label>
       {hint ? (
-        <p className="mt-0.5 text-xs text-[#6B6B6B]">{hint}</p>
+        <p className="mt-0.5 text-xs text-muted">{hint}</p>
       ) : null}
     </div>
   );
 }
 
 const inputClass =
-  "w-full rounded-[6px] border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] placeholder:text-[#6B6B6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[#0A0A0A]";
+  "w-full rounded-[6px] border border-border bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-foreground";
 
 type FieldInputProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;

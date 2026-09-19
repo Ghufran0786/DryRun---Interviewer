@@ -4,7 +4,7 @@ DryRun is a local-first, single-user web app for practicing system design mock i
 
 ## Design system
 
-Light theme only. Background `#FAFAFA`, surfaces `#FFFFFF`, primary text `#0A0A0A`, secondary text `#6B6B6B`, borders `#E5E5E5` (1px), hover `#F2F2F2`. No other colors in the **app shell** — status uses filled vs outlined dots, weight, and text. Buttons: primary black/white, secondary white/black with border, 6px radius, 2px black focus rings. Typography: Geist via `next/font`; uppercase 11px tracked section labels; `tabular-nums` for timers. Hand-rolled UI in `src/components/ui/` (no component libraries). See PINNED FACT (f) for the Excalidraw exemption.
+Light theme only. Background `#FAFAFA`, surfaces `#FFFFFF`, primary text `#0A0A0A`, secondary text `#6B6B6B`, borders `#E5E5E5` (1px), hover `#F2F2F2`, primary-hover `#1A1A1A` (hover state of black buttons only). No other colors in the **app shell** — status uses filled vs outlined dots, weight, and text. Buttons: primary black/white, secondary white/black with border, 6px radius, 2px black focus rings. Typography: Geist via `next/font`; uppercase 11px tracked section labels; `tabular-nums` for timers. Hand-rolled UI in `src/components/ui/` (no component libraries). See PINNED FACT (f) for the Excalidraw exemption.
 
 ## Decisions
 

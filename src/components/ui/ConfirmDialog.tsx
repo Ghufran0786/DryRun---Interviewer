@@ -1,7 +1,14 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
+import { MaterialIcon } from "@/components/ui/MaterialIcon";
 import { useEffect, useId, useRef } from "react";
+
+export type ConfirmDialogMeta = {
+  sessionId: string;
+  level: string;
+  durationLabel?: string;
+  snapshotCount?: number;
+};
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -10,6 +17,7 @@ type ConfirmDialogProps = {
   confirmLabel?: string;
   cancelLabel?: string;
   confirming?: boolean;
+  meta?: ConfirmDialogMeta;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -21,6 +29,7 @@ export function ConfirmDialog({
   confirmLabel = "Delete",
   cancelLabel = "Cancel",
   confirming = false,
+  meta,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -52,6 +61,11 @@ export function ConfirmDialog({
     return null;
   }
 
+  const shortId =
+    meta && meta.sessionId.length > 8
+      ? meta.sessionId.slice(0, 8)
+      : meta?.sessionId;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -59,7 +73,7 @@ export function ConfirmDialog({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-[#0A0A0A]/40"
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
         aria-label="Close dialog"
         disabled={confirming}
         onClick={() => {
@@ -73,34 +87,87 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="relative z-10 w-full max-w-md rounded-[6px] border border-[#E5E5E5] bg-white p-6 shadow-none"
+        className="relative z-10 flex w-full max-w-[480px] flex-col rounded-xl bg-white p-6 shadow-2xl"
       >
+        <div className="mb-3 flex w-full items-center justify-between">
+          <div className="inline-flex items-center gap-1.5 rounded bg-hover px-2 py-0.5 text-foreground">
+            <MaterialIcon name="warning" className="text-[15px]" filled />
+            <span className="text-[0.6875rem] font-semibold uppercase tracking-wider">
+              Destructive Action
+            </span>
+          </div>
+          <button
+            type="button"
+            aria-label="Close dialog"
+            disabled={confirming}
+            className="flex h-7 w-7 items-center justify-center rounded text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground"
+            onClick={() => {
+              if (!confirming) {
+                onCancel();
+              }
+            }}
+          >
+            <MaterialIcon name="close" className="text-[18px]" />
+          </button>
+        </div>
         <h2
           id={titleId}
-          className="text-base font-semibold text-[#0A0A0A]"
+          className="text-lg font-semibold text-foreground"
         >
           {title}
         </h2>
-        <p id={descriptionId} className="mt-3 text-sm leading-relaxed text-[#6B6B6B]">
+        <p
+          id={descriptionId}
+          className="mt-2 text-[0.8125rem] leading-relaxed text-muted"
+        >
           {description}
         </p>
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <Button
+        {meta ? (
+          <div className="my-4 flex flex-col gap-1.5 rounded bg-hover p-3">
+            <div className="flex items-center justify-between font-mono text-[0.8125rem] text-foreground">
+              <span className="flex items-center gap-1">
+                <MaterialIcon name="fingerprint" className="text-[13px] text-muted" />
+                ID: {shortId}
+              </span>
+              <span className="text-muted">LEVEL: {meta.level}</span>
+            </div>
+            <div className="flex items-center justify-between font-mono text-[0.8125rem] text-muted">
+              {meta.durationLabel ? (
+                <span className="flex items-center gap-1">
+                  <MaterialIcon name="timer" className="text-[13px]" />
+                  {meta.durationLabel}
+                </span>
+              ) : (
+                <span />
+              )}
+              {meta.snapshotCount !== undefined ? (
+                <span className="flex items-center gap-1">
+                  <MaterialIcon name="burst_mode" className="text-[13px]" />
+                  {meta.snapshotCount} whiteboard snapshots
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        <div className="flex items-center justify-end gap-3 pt-1">
+          <button
             ref={cancelRef}
             type="button"
-            variant="secondary"
             disabled={confirming}
+            className="rounded bg-white px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:opacity-50"
             onClick={onCancel}
           >
             {cancelLabel}
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
             disabled={confirming}
+            className="inline-flex items-center gap-2 rounded bg-foreground px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:opacity-50"
             onClick={onConfirm}
           >
-            {confirming ? "Deleting…" : confirmLabel}
-          </Button>
+            <MaterialIcon name="delete" className="text-[16px]" />
+            <span>{confirming ? "Deleting…" : confirmLabel}</span>
+          </button>
         </div>
       </div>
     </div>

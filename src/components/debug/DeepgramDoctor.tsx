@@ -353,14 +353,14 @@ export function DeepgramDoctor() {
       </div>
 
       {running ? (
-        <p className="text-sm text-[#6B6B6B]">Running: {running}…</p>
+        <p className="text-sm text-muted">Running: {running}…</p>
       ) : null}
 
       <section>
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted">
           Diagnostic log
         </h2>
-        <pre className="mt-3 min-h-64 overflow-x-auto whitespace-pre-wrap rounded-[6px] border border-[#E5E5E5] bg-white p-4 font-mono text-xs leading-relaxed text-[#0A0A0A]">
+        <pre className="mt-3 min-h-64 overflow-x-auto whitespace-pre-wrap rounded-[6px] border border-border bg-white p-4 font-mono text-xs leading-relaxed text-foreground">
           {logs.length === 0
             ? "No checks run yet."
             : logs

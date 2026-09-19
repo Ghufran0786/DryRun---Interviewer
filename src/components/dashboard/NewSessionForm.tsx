@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { MaterialIcon } from "@/components/ui/MaterialIcon";
 import { FieldInput, FieldLabel, FieldTextarea } from "@/components/ui/Field";
 import { TARGET_LEVELS, type TargetLevel } from "@/lib/types";
 import { useRouter } from "next/navigation";
@@ -45,21 +46,26 @@ export function NewSessionForm({ defaultTargetLevel }: NewSessionFormProps) {
 
   if (!open) {
     return (
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        className="gap-2 shadow-sm"
+        onClick={() => setOpen(true)}
+      >
+        <MaterialIcon name="add" className="text-[18px]" />
         New interview
       </Button>
     );
   }
 
   const inputClass =
-    "w-full rounded-[6px] border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[#0A0A0A]";
+    "w-full rounded-[6px] border border-border bg-white px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-foreground";
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-8 rounded-[6px] border border-[#E5E5E5] bg-white p-6"
+      className="mt-8 rounded-[6px] border border-border bg-white p-6"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
         New interview
       </p>
       <div className="mt-4 space-y-4">
@@ -94,7 +100,7 @@ export function NewSessionForm({ defaultTargetLevel }: NewSessionFormProps) {
           </select>
         </div>
         {error ? (
-          <p className="text-sm text-[#0A0A0A] font-medium">{error}</p>
+          <p className="text-sm text-foreground font-medium">{error}</p>
         ) : null}
         <div className="flex gap-3">
           <Button type="submit" disabled={submitting}>

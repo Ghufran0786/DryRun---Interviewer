@@ -25,7 +25,9 @@ export function ElapsedTimer({ startedAtMs }: ElapsedTimerProps) {
   }, [startedAtMs]);
 
   return (
-    <span className="font-mono text-sm tabular-nums text-[#0A0A0A]">
+    <span
+      className="inline-block min-w-[4.5rem] text-right font-mono text-sm tabular-nums text-foreground"
+    >
       {formatDurationMs(elapsedMs)}
     </span>
   );

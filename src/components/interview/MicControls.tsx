@@ -25,7 +25,7 @@ const LABELS: Record<DeepgramState, string> = {
 function StatusDot({ state }: { state: DeepgramState }) {
   if (state === "listening") {
     return (
-      <span className="h-2 w-2 rounded-full bg-[#0A0A0A]" aria-hidden />
+      <span className="h-2 w-2 rounded-full bg-foreground" aria-hidden />
     );
   }
   if (
@@ -35,16 +35,16 @@ function StatusDot({ state }: { state: DeepgramState }) {
   ) {
     return (
       <span
-        className="h-2 w-2 overflow-hidden rounded-full border border-[#0A0A0A]"
+        className="h-2 w-2 overflow-hidden rounded-full border border-foreground"
         aria-hidden
       >
-        <span className="block h-full w-1/2 bg-[#0A0A0A]" />
+        <span className="block h-full w-1/2 bg-foreground" />
       </span>
     );
   }
   return (
     <span
-      className="h-2 w-2 rounded-full border border-[#0A0A0A] bg-transparent"
+      className="h-2 w-2 rounded-full border border-foreground bg-transparent"
       aria-hidden
     />
   );
@@ -78,7 +78,7 @@ export function MicControls({
         {LABELS[state]}
       </span>
       {error ? (
-        <span className="max-w-xs truncate text-[#0A0A0A]" title={error}>
+        <span className="max-w-xs truncate text-foreground" title={error}>
           {error}
         </span>
       ) : null}

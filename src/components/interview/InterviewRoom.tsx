@@ -2,9 +2,8 @@
 
 import { ElapsedTimer } from "@/components/interview/ElapsedTimer";
 import { InterviewerPanel } from "@/components/interview/InterviewerPanel";
-import { MicControls } from "@/components/interview/MicControls";
+import { InterviewControlDock } from "@/components/interview/InterviewControlDock";
 import { PhaseStepper } from "@/components/interview/PhaseStepper";
-import { SnapshotStatus } from "@/components/interview/SnapshotStatus";
 import { TranscriptPanel } from "@/components/interview/TranscriptPanel";
 import {
   useTranscriptStore,
@@ -12,7 +11,6 @@ import {
 } from "@/components/transcript/TranscriptStore";
 import { SiteChrome } from "@/components/layout/SiteChrome";
 import { Badge } from "@/components/ui/Badge";
-import { MaterialIcon } from "@/components/ui/MaterialIcon";
 import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { useDeepgramLive } from "@/hooks/useDeepgramLive";
@@ -43,7 +41,7 @@ const WhiteboardPanel = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center text-sm text-[#6B6B6B]">
+      <div className="flex h-full items-center justify-center text-sm text-muted">
         Loading whiteboard…
       </div>
     ),
@@ -98,7 +96,6 @@ export function InterviewRoom({
   const [capturing, setCapturing] = useState(false);
   const [micBusy, setMicBusy] = useState(false);
   const [snapshotCount, setSnapshotCount] = useState(0);
-  const [lastCaptureAt, setLastCaptureAt] = useState<Date | null>(null);
   const [lastUtteranceAt, setLastUtteranceAt] = useState<number | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(initialTtsEnabled);
   const [voicePreferenceError, setVoicePreferenceError] =
@@ -151,7 +148,6 @@ export function InterviewRoom({
   const onSnapshotRecorded = useCallback(
     (meta: { capturedAt: Date; count: number }) => {
       setSnapshotCount(meta.count);
-      setLastCaptureAt(meta.capturedAt);
     },
     [],
   );
@@ -310,10 +306,6 @@ export function InterviewRoom({
       }
       const list = (await res.json()) as { capturedAt: string }[];
       setSnapshotCount(list.length);
-      const latest = list[list.length - 1];
-      if (latest) {
-        setLastCaptureAt(new Date(latest.capturedAt));
-      }
     })();
     return () => {
       cancelled = true;
@@ -503,9 +495,9 @@ export function InterviewRoom({
       runtimeStatus={runtimeStatus}
       interviewHref={`/interview/${sessionId}`}
     >
-    <div className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col bg-[#FAFAFA]">
-      <header className="flex shrink-0 flex-wrap items-center gap-4 border-b border-[#E5E5E5] bg-white/95 px-4 py-3 shadow-sm backdrop-blur-sm">
-        <h1 className="text-sm font-semibold text-[#0A0A0A]">{title}</h1>
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent">
+      <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-2 border-b border-border/80 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-sm sm:gap-3 sm:px-4">
+        <h1 className="text-sm font-semibold text-foreground">{title}</h1>
         <Badge filled>{targetLevel}</Badge>
         <PhaseStepper
           currentPhase={interviewerLoop.currentPhase}
@@ -533,10 +525,10 @@ export function InterviewRoom({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col p-4">
+      <div className="relative z-10 flex min-h-0 flex-1">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col p-2 sm:p-3">
           <div
-            className="flex h-full min-h-[320px] flex-1 flex-col overflow-hidden rounded-[6px] border border-[#E5E5E5] bg-white"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[6px] border border-border bg-white"
           >
             <WhiteboardPanel
               sessionId={sessionId}
@@ -549,50 +541,25 @@ export function InterviewRoom({
         </main>
 
         <aside
-          className="hidden w-[360px] shrink-0 border-l border-[#E5E5E5] bg-white md:flex md:flex-col"
+          className="relative z-10 hidden min-h-0 w-[320px] shrink-0 border-l border-border bg-white/95 backdrop-blur-sm md:flex md:flex-col lg:w-[360px]"
         >
           <Tabs tabs={tabs} activeId={tab} onChange={setTab} />
         </aside>
       </div>
 
-      <footer
-        className="flex shrink-0 flex-wrap items-center gap-6 border-t border-[#E5E5E5] bg-white px-4 py-2 text-xs text-[#6B6B6B]"
-      >
-        <span className="hidden items-center gap-1 font-mono uppercase tracking-wider text-[#0A0A0A] sm:inline-flex">
-          <MaterialIcon
-            name={interviewerSpeaking ? "record_voice_over" : "graphic_eq"}
-            className="text-[14px]"
-          />
-          AI evaluator · {runtimeStatus}
-        </span>
-        <MicControls
-          state={micState}
-          error={micError}
-          busy={micBusy || ending}
-          onStart={handleStartMic}
-          onStop={handleStopMic}
-        />
-        <SnapshotStatus count={snapshotCount} lastCaptureAt={lastCaptureAt} />
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => void toggleVoice()}
-          title={voicePreferenceError ?? undefined}
-        >
-          {ttsEnabled ? "Voice on" : "Voice muted"}
-        </Button>
-        {interviewerSpeaking ? (
-          <span className="font-medium text-[#0A0A0A]">Interviewer speaking</span>
-        ) : null}
-        {voicePreferenceError ? (
-          <span className="max-w-xs truncate text-[#0A0A0A]">
-            {voicePreferenceError}
-          </span>
-        ) : null}
-        <span className="ml-auto truncate text-[#0A0A0A]">
-          Model: <span className="font-medium">{interviewerModel}</span>
-        </span>
-      </footer>
+      <InterviewControlDock
+        micState={micState}
+        micError={micError}
+        micBusy={micBusy || ending}
+        interviewerSpeaking={interviewerSpeaking}
+        ttsEnabled={ttsEnabled}
+        interviewerModel={interviewerModel}
+        snapshotCount={snapshotCount}
+        onStartMic={handleStartMic}
+        onStopMic={handleStopMic}
+        onToggleVoice={() => void toggleVoice()}
+        voicePreferenceError={voicePreferenceError}
+      />
     </div>
     </SiteChrome>
   );

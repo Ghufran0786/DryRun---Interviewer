@@ -21,12 +21,12 @@ export function SnapshotStatus({ count, lastCaptureAt }: SnapshotStatusProps) {
   return (
     <span className="inline-flex items-center gap-3 tabular-nums">
       <span>
-        Snapshots: <span className="font-medium text-[#0A0A0A]">{count}</span>
+        Snapshots: <span className="font-medium text-foreground">{count}</span>
       </span>
       {lastCaptureAt ? (
         <span>
           Last capture{" "}
-          <span className="font-medium text-[#0A0A0A]">
+          <span className="font-medium text-foreground">
             {agoMs !== null ? formatDurationMs(agoMs) : "—"}
           </span>{" "}
           ago

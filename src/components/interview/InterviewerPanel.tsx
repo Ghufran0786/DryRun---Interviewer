@@ -63,7 +63,7 @@ export function InterviewerPanel({
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex shrink-0 items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
           Conversation
         </span>
         <Button type="button" variant="secondary" onClick={onAsk} disabled={thinking}>
@@ -72,12 +72,12 @@ export function InterviewerPanel({
       </div>
 
       {error ? (
-        <div className="shrink-0 rounded-[6px] border border-[#0A0A0A] bg-[#FAFAFA] p-3 text-sm text-[#0A0A0A]">
+        <div className="shrink-0 rounded-[6px] border border-foreground bg-background p-3 text-sm text-foreground">
           <p>{error}</p>
           <button
             type="button"
             onClick={onRetry}
-            className="mt-2 font-semibold underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
+            className="mt-2 font-semibold underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
           >
             Retry
           </button>
@@ -86,8 +86,8 @@ export function InterviewerPanel({
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto">
         {!hasInterviewer ? (
-          <div className="rounded-[6px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] p-4">
-            <p className="text-sm text-[#6B6B6B]">
+          <div className="rounded-[6px] border border-dashed border-border bg-background p-4">
+            <p className="text-sm text-muted">
               Start with the interviewer&apos;s opening prompt.
             </p>
             <Button
@@ -106,22 +106,22 @@ export function InterviewerPanel({
             key={entry.id}
             className={`rounded-[6px] border p-3 ${
               entry.role === "interviewer"
-                ? "border-[#0A0A0A] bg-white"
-                : "border-[#E5E5E5] bg-[#FAFAFA]"
+                ? "border-foreground bg-white"
+                : "border-border bg-background"
             }`}
           >
             <div className="mb-2 flex items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
                 {entry.role}
               </span>
               {entry.kind ? <Badge>{entry.kind.replace("_", " ")}</Badge> : null}
-              <span className="ml-auto tabular-nums text-[11px] text-[#6B6B6B]">
+              <span className="ml-auto tabular-nums text-[11px] text-muted">
                 {formatDurationMs(entry.tsMs)}
               </span>
             </div>
-            <p className="text-sm leading-relaxed text-[#0A0A0A]">{entry.text}</p>
+            <p className="text-sm leading-relaxed text-foreground">{entry.text}</p>
             {entry.role === "interviewer" ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#6B6B6B]">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
                 {voiceStatuses[entry.id]?.state === "loading" ? (
                   <span>voice loading…</span>
                 ) : null}
@@ -129,7 +129,7 @@ export function InterviewerPanel({
                   <button
                     type="button"
                     onClick={onStopVoice}
-                    className="font-semibold text-[#0A0A0A] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
+                    className="font-semibold text-foreground underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                   >
                     Stop
                   </button>
@@ -143,7 +143,7 @@ export function InterviewerPanel({
                       type="button"
                       onClick={() => onReplay(entry.id, entry.text)}
                       disabled={!voiceEnabled}
-                      className="font-semibold text-[#0A0A0A] underline underline-offset-4 disabled:text-[#6B6B6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
+                      className="font-semibold text-foreground underline underline-offset-4 disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                     >
                       Retry
                     </button>
@@ -155,7 +155,7 @@ export function InterviewerPanel({
                     type="button"
                     onClick={() => onReplay(entry.id, entry.text)}
                     disabled={!voiceEnabled}
-                    className="font-semibold text-[#0A0A0A] underline underline-offset-4 disabled:text-[#6B6B6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
+                    className="font-semibold text-foreground underline underline-offset-4 disabled:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                   >
                     Replay
                   </button>
@@ -166,12 +166,12 @@ export function InterviewerPanel({
         ))}
 
         {thinking ? (
-          <p className="text-sm italic text-[#6B6B6B]">thinking…</p>
+          <p className="text-sm italic text-muted">thinking…</p>
         ) : null}
       </div>
 
       <form
-        className="shrink-0 border-t border-[#E5E5E5] pt-3"
+        className="shrink-0 border-t border-border pt-3"
         onSubmit={(event) => {
           event.preventDefault();
           const text = simulation.trim();
@@ -182,7 +182,7 @@ export function InterviewerPanel({
       >
         <label
           htmlFor="simulate-utterance"
-          className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]"
+          className="text-[11px] font-semibold uppercase tracking-wider text-muted"
         >
           Simulate utterance
         </label>
@@ -192,24 +192,24 @@ export function InterviewerPanel({
             value={simulation}
             onChange={(event) => setSimulation(event.target.value)}
             placeholder="Type a candidate utterance"
-            className="min-w-0 flex-1 rounded-[6px] border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#0A0A0A] placeholder:text-[#6B6B6B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[#0A0A0A]"
+            className="min-w-0 flex-1 rounded-[6px] border border-border bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-foreground"
           />
           <Button type="submit" variant="secondary">
             Inject
           </Button>
         </div>
-        <p className="mt-1 text-[11px] text-[#6B6B6B]">
+        <p className="mt-1 text-[11px] text-muted">
           Permanent development aid. Uses the real persistence and turn path.
         </p>
       </form>
-      <details className="shrink-0 border-t border-[#E5E5E5] pt-2 text-[11px] text-[#6B6B6B]">
-        <summary className="cursor-pointer font-semibold uppercase tracking-wider text-[#0A0A0A]">
+      <details className="shrink-0 border-t border-border pt-2 text-[11px] text-muted">
+        <summary className="cursor-pointer font-semibold uppercase tracking-wider text-foreground">
           Debug log ({diagnostics.length})
         </summary>
         <button
           type="button"
           onClick={() => void copyDiagnostics()}
-          className="mt-2 rounded-[6px] border border-[#E5E5E5] bg-white px-2 py-1 font-semibold text-[#0A0A0A] hover:bg-[#F2F2F2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
+          className="mt-2 rounded-[6px] border border-border bg-white px-2 py-1 font-semibold text-foreground hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
         >
           {copiedDiagnostics ? "Copied" : "Copy full trace"}
         </button>

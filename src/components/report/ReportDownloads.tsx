@@ -76,15 +76,15 @@ export function ReportDownloads({
 
   if (!canDownload) {
     return (
-      <p className="text-sm text-[#6B6B6B]">
+      <p className="text-sm text-muted">
         Complete the interview to download the PDF or analysis bundle.
       </p>
     );
   }
 
   return (
-    <div className="rounded-[6px] border border-[#E5E5E5] bg-white p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+    <div className="rounded-[6px] border border-border bg-white p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
         Downloads
       </p>
       <div className="mt-3 flex flex-wrap gap-3">
@@ -106,15 +106,15 @@ export function ReportDownloads({
             : "Download analysis bundle"}
         </Button>
       </div>
-      <p className="mt-3 text-sm text-[#6B6B6B]">
+      <p className="mt-3 text-sm text-muted">
         Unzip the analysis bundle, paste ANALYSIS_PROMPT.md into a strong model,
         and attach the snapshots/ PNGs.
       </p>
       {pdfError ? (
-        <p className="mt-2 text-sm text-[#0A0A0A]">{pdfError}</p>
+        <p className="mt-2 text-sm text-foreground">{pdfError}</p>
       ) : null}
       {zipError ? (
-        <p className="mt-2 text-sm text-[#0A0A0A]">{zipError}</p>
+        <p className="mt-2 text-sm text-foreground">{zipError}</p>
       ) : null}
     </div>
   );

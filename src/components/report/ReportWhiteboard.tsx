@@ -19,7 +19,7 @@ export function ReportWhiteboard({ sessionId, initialScene }: ReportWhiteboardPr
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
 
   return (
-    <div className="h-[420px] overflow-hidden rounded-[6px] border border-[#E5E5E5] bg-white">
+    <div className="h-[420px] overflow-hidden rounded-[6px] border border-border bg-white">
       <WhiteboardPanel
         sessionId={sessionId}
         readOnly={true}

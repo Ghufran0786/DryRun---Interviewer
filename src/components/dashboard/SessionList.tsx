@@ -2,11 +2,8 @@
 
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MaterialIcon } from "@/components/ui/MaterialIcon";
-import {
-  formatDateTime,
-  formatDurationMs,
-  sessionDurationMs,
-} from "@/lib/format";
+import { ClientDateTime } from "@/components/ui/ClientDateTime";
+import { formatDurationMs, sessionDurationMs } from "@/lib/format";
 import type { Session } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,16 +22,16 @@ function StatusMarker({ status }: { status: Session["status"] }) {
     return (
       <span className="relative flex h-2.5 w-2.5 shrink-0 items-center justify-center">
         <span
-          className="inline-block h-2.5 w-2.5 rounded-full bg-white ring-2 ring-[#0A0A0A]"
+          className="inline-block h-2.5 w-2.5 rounded-full bg-white ring-2 ring-foreground"
           aria-hidden
         />
-        <span className="absolute -inset-1 animate-ping rounded-full bg-[#0A0A0A]/20" />
+        <span className="absolute -inset-1 animate-ping rounded-full bg-foreground/20" />
       </span>
     );
   }
   return (
     <span
-      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[#0A0A0A]"
+      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-foreground"
       title={status === "completed" ? "Completed" : "Created"}
       aria-hidden
     />
@@ -111,15 +108,15 @@ export function SessionList({ sessions }: SessionListProps) {
         }}
       />
       {error ? (
-        <p className="rounded border border-[#E5E5E5] bg-white px-4 py-3 text-sm text-[#0A0A0A]">
+        <p className="rounded border border-border bg-white px-4 py-3 text-sm text-foreground">
           {error}
         </p>
       ) : null}
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-[0.6875rem] font-medium uppercase tracking-widest text-[#5E5E5E]">
+        <p className="text-[0.6875rem] font-medium uppercase tracking-widest text-muted">
           Past sessions ({sessions.length})
         </p>
-        <p className="font-mono text-[0.8125rem] text-[#5E5E5E]">
+        <p className="font-mono text-[0.8125rem] text-muted">
           LOCAL REPOSITORY · ./data/dryrun.db
         </p>
       </div>
@@ -136,13 +133,13 @@ export function SessionList({ sessions }: SessionListProps) {
           );
           const rowBg =
             session.status === "active"
-              ? "bg-[#E8E8E8]"
-              : "bg-white hover:bg-[#F3F3F3]";
+              ? "bg-border"
+              : "bg-white hover:bg-hover";
 
           return (
             <div key={session.id}>
               {index > 0 ? (
-                <div className="h-px w-full bg-[#EEEEEE]" aria-hidden />
+                <div className="h-px w-full bg-hover" aria-hidden />
               ) : null}
               <div
                 className={`group flex flex-col justify-between gap-4 p-4 transition-colors lg:flex-row lg:items-center ${rowBg}`}
@@ -153,32 +150,32 @@ export function SessionList({ sessions }: SessionListProps) {
                   </div>
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-lg font-semibold text-[#0A0A0A]">
+                      <h2 className="truncate text-lg font-semibold text-foreground">
                         {session.title}
                       </h2>
-                      <span className="rounded bg-[#EEEEEE] px-1.5 py-0.5 font-mono text-[0.8125rem] uppercase tracking-wider text-[#0A0A0A]">
+                      <span className="rounded bg-hover px-1.5 py-0.5 font-mono text-[0.8125rem] uppercase tracking-wider text-foreground">
                         {session.targetLevel}
                       </span>
                       <span
                         className={`rounded px-1.5 py-0.5 font-mono text-[0.8125rem] uppercase tracking-wider ${
                           session.status === "active"
-                            ? "bg-[#0A0A0A] text-white"
-                            : "bg-[#EEEEEE] text-[#444748]"
+                            ? "bg-foreground text-white"
+                            : "bg-hover text-muted"
                         }`}
                       >
                         {session.status}
                       </span>
                     </div>
-                    <p className="max-w-2xl truncate text-[0.8125rem] text-[#5E5E5E]">
+                    <p className="max-w-2xl truncate text-[0.8125rem] text-muted">
                       {session.problem}
                     </p>
-                    <div className="flex flex-wrap items-center gap-4 pt-0.5 font-mono text-[0.8125rem] text-[#5E5E5E]">
+                    <div className="flex flex-wrap items-center gap-4 pt-0.5 font-mono text-[0.8125rem] text-muted">
                       <span className="flex items-center gap-1">
                         <MaterialIcon
                           name="calendar_today"
                           className="text-[14px]"
                         />
-                        {formatDateTime(session.createdAt)}
+                        <ClientDateTime date={session.createdAt} />
                         {durationMs !== null
                           ? ` · ${formatDurationMs(durationMs)}`
                           : null}
@@ -195,13 +192,13 @@ export function SessionList({ sessions }: SessionListProps) {
                 </div>
                 <div className="flex shrink-0 items-center gap-2 self-end lg:self-center">
                   {session.verdict ? (
-                    <span className="rounded bg-[#FAFAFA] px-2 py-1 font-mono text-[0.8125rem] uppercase tracking-wider text-[#5E5E5E]">
+                    <span className="rounded bg-background px-2 py-1 font-mono text-[0.8125rem] uppercase tracking-wider text-muted">
                       {session.verdict}
                     </span>
                   ) : null}
                   <button
                     type="button"
-                    className="rounded bg-[#FAFAFA] px-3 py-1.5 text-[0.8125rem] text-[#0A0A0A] transition-colors hover:bg-[#EEEEEE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A] disabled:opacity-50"
+                    className="rounded bg-background px-3 py-1.5 text-[0.8125rem] text-foreground transition-colors hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:opacity-50"
                     disabled={isDeleting}
                     onClick={() => setPendingDelete(session)}
                   >
@@ -209,7 +206,7 @@ export function SessionList({ sessions }: SessionListProps) {
                   </button>
                   <Link
                     href={href}
-                    className="inline-flex items-center gap-1 rounded bg-[#0A0A0A] px-3 py-1.5 text-[0.8125rem] font-medium text-white transition-colors hover:bg-[#1A1A1A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
+                    className="inline-flex items-center gap-1 rounded bg-foreground px-3 py-1.5 text-[0.8125rem] font-medium text-white transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                   >
                     {session.status === "completed" ? (
                       <>

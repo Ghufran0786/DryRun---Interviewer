@@ -20,7 +20,7 @@ export function Tabs({ tabs, activeId, onChange }: TabsProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div
-        className="flex shrink-0 border-b border-[#E5E5E5]"
+        className="flex shrink-0 border-b border-border"
         role="tablist"
         aria-label="Panel tabs"
       >
@@ -32,10 +32,10 @@ export function Tabs({ tabs, activeId, onChange }: TabsProps) {
               type="button"
               role="tab"
               aria-selected={isActive}
-              className={`flex-1 px-3 py-2.5 text-xs font-medium uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#0A0A0A] ${
+              className={`flex-1 px-3 py-2.5 text-xs font-medium uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foreground ${
                 isActive
-                  ? "border-b-2 border-[#0A0A0A] text-[#0A0A0A]"
-                  : "text-[#6B6B6B] hover:bg-[#F2F2F2] hover:text-[#0A0A0A]"
+                  ? "border-b-2 border-foreground text-foreground"
+                  : "text-muted hover:bg-hover hover:text-foreground"
               }`}
               onClick={() => onChange(tab.id)}
             >

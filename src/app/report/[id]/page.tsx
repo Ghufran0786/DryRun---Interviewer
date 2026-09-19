@@ -1,4 +1,4 @@
-import { AppHeader } from "@/components/layout/AppHeader";
+import { SiteChrome } from "@/components/layout/SiteChrome";
 import { ReportTranscript } from "@/components/report/ReportTranscript";
 import { ReportWhiteboard } from "@/components/report/ReportWhiteboard";
 import { EvaluationReport } from "@/components/report/EvaluationReport";
@@ -12,7 +12,6 @@ import { getSettings } from "@/lib/settings";
 import { parseSceneJson } from "@/lib/scenePayload";
 import { digestFromElementsJson } from "@/lib/sceneDigest";
 import { isTargetLevel } from "@/lib/validation";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -24,7 +23,7 @@ export default async function ReportPage({ params }: PageProps) {
     notFound();
   }
 
-  const [snapshots, transcript, settings] = await Promise.all([
+  const [snapshots, transcript, settings, activeSession] = await Promise.all([
     prisma.snapshot.findMany({
       where: { sessionId: id },
       orderBy: { capturedAt: "asc" },
@@ -34,6 +33,10 @@ export default async function ReportPage({ params }: PageProps) {
       orderBy: [{ tsMs: "asc" }, { createdAt: "asc" }],
     }),
     getSettings(),
+    prisma.session.findFirst({
+      where: { status: "active" },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   const durationMs = sessionDurationMs(session.startedAt, session.endedAt);
@@ -51,55 +54,52 @@ export default async function ReportPage({ params }: PageProps) {
   }));
 
   return (
-    <>
-      <AppHeader
-        trailing={
-          <Link
-            href="/"
-            className="text-sm text-[#6B6B6B] hover:text-[#0A0A0A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
-          >
-            Dashboard
-          </Link>
-        }
-      />
-      <main className="mx-auto max-w-5xl flex-1 px-6 py-10">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
-          Report
+    <SiteChrome
+      runtimeStatus="REPORT"
+      interviewHref={
+        activeSession ? `/interview/${activeSession.id}` : undefined
+      }
+      reportHref={`/report/${session.id}`}
+    >
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+        <p className="flex items-center gap-1 text-[0.6875rem] font-medium uppercase tracking-widest text-muted">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-foreground" />
+          Interview report & scoring
         </p>
-        <h1 className="mt-1 text-2xl font-semibold text-[#0A0A0A]">
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
           {session.title}
         </h1>
 
-        <dl className="mt-8 grid gap-4 rounded-[6px] border border-[#E5E5E5] bg-white p-6 text-sm">
+        <dl className="mt-8 grid gap-4 rounded-xl border border-border bg-white p-6 text-sm shadow-sm">
           <div className="flex flex-wrap gap-2 justify-between">
-            <dt className="text-[#6B6B6B]">Problem</dt>
-            <dd className="text-[#0A0A0A] max-w-md text-right">{session.problem}</dd>
+            <dt className="text-muted">Problem</dt>
+            <dd className="text-foreground max-w-md text-right">{session.problem}</dd>
           </div>
           <div className="flex flex-wrap gap-2 justify-between items-center">
-            <dt className="text-[#6B6B6B]">Level</dt>
+            <dt className="text-muted">Level</dt>
             <dd><Badge>{level}</Badge></dd>
           </div>
           <div className="flex flex-wrap gap-2 justify-between">
-            <dt className="text-[#6B6B6B]">Status</dt>
-            <dd className="text-[#0A0A0A] uppercase text-xs tracking-wide">
+            <dt className="text-muted">Status</dt>
+            <dd className="text-foreground uppercase text-xs tracking-wide">
               {session.status}
             </dd>
           </div>
           <div className="flex flex-wrap gap-2 justify-between">
-            <dt className="text-[#6B6B6B]">Duration</dt>
-            <dd className="tabular-nums text-[#0A0A0A]">
+            <dt className="text-muted">Duration</dt>
+            <dd className="tabular-nums text-foreground">
               {durationMs !== null ? formatDurationMs(durationMs) : "—"}
             </dd>
           </div>
           <div className="flex flex-wrap gap-2 justify-between">
-            <dt className="text-[#6B6B6B]">Started</dt>
-            <dd className="text-[#0A0A0A]">
+            <dt className="text-muted">Started</dt>
+            <dd className="text-foreground">
               {session.startedAt ? formatDateTime(session.startedAt) : "—"}
             </dd>
           </div>
           <div className="flex flex-wrap gap-2 justify-between">
-            <dt className="text-[#6B6B6B]">Ended</dt>
-            <dd className="text-[#0A0A0A]">
+            <dt className="text-muted">Ended</dt>
+            <dd className="text-foreground">
               {session.endedAt ? formatDateTime(session.endedAt) : "—"}
             </dd>
           </div>
@@ -121,7 +121,7 @@ export default async function ReportPage({ params }: PageProps) {
         </div>
 
         <section className="mt-10">
-          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-muted">
             Final whiteboard
           </p>
           <ReportWhiteboard
@@ -131,14 +131,14 @@ export default async function ReportPage({ params }: PageProps) {
         </section>
 
         <section className="mt-10">
-          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-muted">
             Snapshot gallery
           </p>
           <SnapshotGallery snapshots={galleryItems} />
         </section>
 
         <section className="mt-10">
-          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wider text-muted">
             Transcript
           </p>
           <ReportTranscript
@@ -153,12 +153,12 @@ export default async function ReportPage({ params }: PageProps) {
         </section>
 
         {session.verdict ? (
-          <p className="mt-8 text-sm text-[#6B6B6B]">
+          <p className="mt-8 text-sm text-muted">
             Dashboard verdict:{" "}
-            <span className="font-medium text-[#0A0A0A]">{session.verdict}</span>
+            <span className="font-medium text-foreground">{session.verdict}</span>
           </p>
         ) : null}
       </main>
-    </>
+    </SiteChrome>
   );
 }

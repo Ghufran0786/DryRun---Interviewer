@@ -50,18 +50,18 @@ export function TranscriptPanel({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center justify-between gap-2 pb-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
           Transcript
         </span>
         <span className="flex items-center gap-3">
           {flashVisible ? (
-            <span className="text-[11px] text-[#6B6B6B]">utterance ✓</span>
+            <span className="text-[11px] text-muted">utterance ✓</span>
           ) : null}
           {suppressedCount > 0 ? (
             <button
               type="button"
               onClick={() => setShowSuppressed((prev) => !prev)}
-              className="text-[11px] uppercase tracking-wider text-[#6B6B6B] hover:text-[#0A0A0A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
+              className="text-[11px] uppercase tracking-wider text-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
             >
               {showSuppressed ? "Hide" : "Show"} suppressed ({suppressedCount})
             </button>
@@ -80,19 +80,19 @@ export function TranscriptPanel({
         className="min-h-0 flex-1 space-y-2 overflow-y-auto"
       >
         {visible.length === 0 && interim.length === 0 ? (
-          <p className="text-sm text-[#6B6B6B]">
+          <p className="text-sm text-muted">
             Start the mic and speak — finalized segments appear here with
             timestamps.
           </p>
         ) : null}
 
         {visible.map((entry) => (
-          <p key={entry.id} className="text-sm leading-relaxed text-[#0A0A0A]">
-            <span className="mr-2 tabular-nums text-xs text-[#6B6B6B]">
+          <p key={entry.id} className="text-sm leading-relaxed text-foreground">
+            <span className="mr-2 tabular-nums text-xs text-muted">
               [{formatDurationMs(entry.tsMs)}]
             </span>
             {entry.suppressed ? (
-              <span className="mr-1 text-xs uppercase tracking-wide text-[#6B6B6B]">
+              <span className="mr-1 text-xs uppercase tracking-wide text-muted">
                 suppressed
               </span>
             ) : null}
@@ -101,7 +101,7 @@ export function TranscriptPanel({
         ))}
 
         {interim.length > 0 ? (
-          <p className="text-sm italic leading-relaxed text-[#6B6B6B]">
+          <p className="text-sm italic leading-relaxed text-muted">
             {interim}
           </p>
         ) : null}

@@ -34,7 +34,7 @@ function scoreBar(score: number) {
         <span
           key={index}
           className={`h-2 w-8 rounded-[2px] ${
-            filled ? "bg-[#0A0A0A]" : "border border-[#0A0A0A] bg-white"
+            filled ? "bg-foreground" : "border border-foreground bg-white"
           }`}
         />
       ))}
@@ -90,7 +90,7 @@ export function EvaluationReport({
   return (
     <section className="mt-10 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
           Evaluation
         </p>
         {canEvaluate && localEvaluationEnabled ? (
@@ -101,69 +101,69 @@ export function EvaluationReport({
       </div>
 
       {!localEvaluationEnabled && canEvaluate ? (
-        <p className="text-sm text-[#6B6B6B]">
+        <p className="text-sm text-muted">
           Local evaluation off — download the analysis packet below and evaluate
           with an external model.
         </p>
       ) : null}
 
       {error ? (
-        <p className="rounded-[6px] border border-[#E5E5E5] bg-white px-4 py-3 text-sm text-[#0A0A0A]">
+        <p className="rounded-[6px] border border-border bg-white px-4 py-3 text-sm text-foreground">
           {error}
         </p>
       ) : null}
 
       {!evaluation ? (
         localEvaluationEnabled ? (
-          <div className="rounded-[6px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] px-6 py-12 text-center text-sm text-[#6B6B6B]">
+          <div className="rounded-[6px] border border-dashed border-border bg-background px-6 py-12 text-center text-sm text-muted">
             {canEvaluate
               ? "No evaluation yet. Run evaluation to generate a rubric report."
               : "Complete the interview to unlock evaluation."}
           </div>
         ) : !canEvaluate ? (
-          <div className="rounded-[6px] border border-dashed border-[#E5E5E5] bg-[#FAFAFA] px-6 py-12 text-center text-sm text-[#6B6B6B]">
+          <div className="rounded-[6px] border border-dashed border-border bg-background px-6 py-12 text-center text-sm text-muted">
             Complete the interview to unlock evaluation.
           </div>
         ) : null
       ) : evaluation.error ? (
-        <div className="rounded-[6px] border border-[#E5E5E5] bg-white px-4 py-3 text-sm text-[#0A0A0A]">
+        <div className="rounded-[6px] border border-border bg-white px-4 py-3 text-sm text-foreground">
           {evaluation.error}
         </div>
       ) : (
         <>
-          <header className="rounded-[6px] border border-[#E5E5E5] bg-white p-6">
+          <header className="rounded-[6px] border border-border bg-white p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
                   Verdict
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-[#0A0A0A]">
+                <p className="mt-2 text-2xl font-semibold text-foreground">
                   {evaluation.verdict}
                 </p>
-                <p className="mt-2 text-sm text-[#6B6B6B]">
+                <p className="mt-2 text-sm text-muted">
                   {evaluation.verdictRationale}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
                   Weighted score
                 </p>
-                <p className="mt-2 text-2xl font-semibold tabular-nums text-[#0A0A0A]">
+                <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
                   {evaluation.weightedScore.toFixed(2)} / 4
                 </p>
-                <p className="mt-2 text-sm text-[#6B6B6B]">
+                <p className="mt-2 text-sm text-muted">
                   Level estimate: {evaluation.levelEstimate}
                 </p>
-                <p className="mt-1 text-sm text-[#0A0A0A]">
+                <p className="mt-1 text-sm text-foreground">
                   {evaluation.wouldPass}
                 </p>
               </div>
             </div>
           </header>
 
-          <div className="overflow-hidden rounded-[6px] border border-[#E5E5E5] bg-white">
+          <div className="overflow-hidden rounded-[6px] border border-border bg-white">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-[#E5E5E5] text-[11px] uppercase tracking-wider text-[#6B6B6B]">
+              <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Dimension</th>
                   <th className="px-4 py-3 font-semibold">Weight</th>
@@ -180,30 +180,30 @@ export function EvaluationReport({
                   const isOpen = expanded[dimension.key] ?? false;
                   return (
                     <Fragment key={dimension.key}>
-                      <tr className="border-b border-[#E5E5E5]">
-                        <td className="px-4 py-3 text-[#0A0A0A]">
+                      <tr className="border-b border-border">
+                        <td className="px-4 py-3 text-foreground">
                           {dimension.label}
                         </td>
-                        <td className="px-4 py-3 tabular-nums text-[#6B6B6B]">
+                        <td className="px-4 py-3 tabular-nums text-muted">
                           {dimension.weight}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             {scoreBar(score)}
-                            <span className="tabular-nums text-[#0A0A0A]">
+                            <span className="tabular-nums text-foreground">
                               {score}
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-[#6B6B6B]">
+                        <td className="px-4 py-3 text-muted">
                           {scoreRow?.improvement ?? "—"}
                         </td>
                       </tr>
-                      <tr className="border-b border-[#E5E5E5] bg-[#FAFAFA]">
+                      <tr className="border-b border-border bg-background">
                         <td colSpan={4} className="px-4 py-3">
                           <button
                             type="button"
-                            className="text-xs font-medium uppercase tracking-wide text-[#0A0A0A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0A0A0A]"
+                            className="text-xs font-medium uppercase tracking-wide text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                             onClick={() =>
                               setExpanded((previous) => ({
                                 ...previous,
@@ -214,7 +214,7 @@ export function EvaluationReport({
                             {isOpen ? "Hide evidence" : "Show evidence"}
                           </button>
                           {isOpen ? (
-                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[#0A0A0A]">
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-foreground">
                               {(scoreRow?.evidence ?? []).map((item) => (
                                 <li key={item}>{item}</li>
                               ))}
@@ -230,21 +230,21 @@ export function EvaluationReport({
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-[6px] border border-[#E5E5E5] bg-white p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+            <div className="rounded-[6px] border border-border bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
                 Strengths
               </p>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#0A0A0A]">
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-foreground">
                 {evaluation.strengths.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
-            <div className="rounded-[6px] border border-[#E5E5E5] bg-white p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+            <div className="rounded-[6px] border border-border bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
                 Gaps
               </p>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#0A0A0A]">
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-foreground">
                 {evaluation.gaps.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -252,20 +252,20 @@ export function EvaluationReport({
             </div>
           </div>
 
-          <div className="rounded-[6px] border border-[#E5E5E5] bg-white p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
+          <div className="rounded-[6px] border border-border bg-white p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
               Action items
             </p>
-            <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-[#0A0A0A]">
+            <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-foreground">
               {evaluation.actionItems.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ol>
           </div>
 
-          <div className="overflow-hidden rounded-[6px] border border-[#E5E5E5] bg-white">
+          <div className="overflow-hidden rounded-[6px] border border-border bg-white">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-[#E5E5E5] text-[11px] uppercase tracking-wider text-[#6B6B6B]">
+              <thead className="border-b border-border text-[11px] uppercase tracking-wider text-muted">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Phase</th>
                   <th className="px-4 py-3 font-semibold">Minutes</th>
@@ -274,12 +274,12 @@ export function EvaluationReport({
               </thead>
               <tbody>
                 {evaluation.phaseAnalysis.map((phase) => (
-                  <tr key={`${phase.phase}-${phase.minutes}`} className="border-b border-[#E5E5E5]">
-                    <td className="px-4 py-3 text-[#0A0A0A]">{phase.phase}</td>
-                    <td className="px-4 py-3 tabular-nums text-[#6B6B6B]">
+                  <tr key={`${phase.phase}-${phase.minutes}`} className="border-b border-border">
+                    <td className="px-4 py-3 text-foreground">{phase.phase}</td>
+                    <td className="px-4 py-3 tabular-nums text-muted">
                       {phase.minutes}
                     </td>
-                    <td className="px-4 py-3 text-[#6B6B6B]">
+                    <td className="px-4 py-3 text-muted">
                       {phase.assessment}
                     </td>
                   </tr>
@@ -288,7 +288,7 @@ export function EvaluationReport({
             </table>
           </div>
 
-          <p className="text-sm text-[#6B6B6B]">
+          <p className="text-sm text-muted">
             Duration {evaluation.stats.durationMin} min ·{" "}
             {evaluation.stats.candidateWords.toLocaleString()} candidate words ·{" "}
             {evaluation.stats.interviewerTurns} interviewer turns ·{" "}
@@ -299,7 +299,7 @@ export function EvaluationReport({
             {completionTokens.toLocaleString()} completion tokens
           </p>
 
-          <p className="text-xs text-[#6B6B6B]">
+          <p className="text-xs text-muted">
             Evaluated with {evaluation.evaluatorModel} ·{" "}
             {new Date(evaluation.evaluatedAt).toLocaleString()} · rubric{" "}
             {evaluation.rubricVersion}
