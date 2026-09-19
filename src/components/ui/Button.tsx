@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type ButtonVariant = "primary" | "secondary";
 
@@ -16,20 +16,20 @@ const variants: Record<ButtonVariant, string> = {
     "bg-white text-[#0A0A0A] border border-[#E5E5E5] hover:bg-[#F2F2F2]",
 };
 
-export function Button({
-  variant = "primary",
-  className = "",
-  children,
-  type = "button",
-  ...props
-}: ButtonProps) {
-  return (
-    <button
-      type={type}
-      className={`${base} ${variants[variant]} ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    { variant = "primary", className = "", children, type = "button", ...props },
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={`${base} ${variants[variant]} ${className}`}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  },
+);

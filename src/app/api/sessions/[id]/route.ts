@@ -1,3 +1,4 @@
+import { deleteSessionById, isDeletableSessionId } from "@/lib/deleteSession";
 import { prisma } from "@/lib/db";
 import { isInterviewPhase } from "@/lib/interviewPhases";
 import { isSessionStatus } from "@/lib/validation";
@@ -148,4 +149,18 @@ export async function PATCH(request: Request, context: RouteContext) {
   });
 
   return NextResponse.json(session);
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  if (!isDeletableSessionId(id)) {
+    return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
+  }
+
+  const deleted = await deleteSessionById(id);
+  if (!deleted) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+
+  return new Response(null, { status: 204 });
 }

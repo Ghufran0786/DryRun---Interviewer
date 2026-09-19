@@ -50,7 +50,7 @@ SQLite file: `./data/dryrun.db` (`DATABASE_URL=file:../data/dryrun.db` in `.env`
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET, POST | `/api/sessions` | List sessions; create session |
-| GET, PATCH | `/api/sessions/[id]` | Fetch session; update status/metadata/current phase; phase overrides append a system `phase_advance` entry |
+| GET, PATCH, DELETE | `/api/sessions/[id]` | Fetch session; update status/metadata/current phase; phase overrides append a system `phase_advance` entry; DELETE removes session, transcript, snapshots (DB + PNG files) |
 | POST | `/api/deepgram/token` | Internal-only grant diagnostic used by `/debug/deepgram` |
 | GET, POST | `/api/sessions/[id]/transcript` | Hydrate and append finalized transcript entries |
 | POST | `/api/interviewer/turn` | Classify an utterance when required, generate and persist one mutex-guarded interviewer turn |
