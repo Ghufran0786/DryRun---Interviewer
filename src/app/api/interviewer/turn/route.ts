@@ -20,6 +20,18 @@ import {
   type ClassifierAction,
   type ClassifierDecision,
 } from "@/lib/prompts";
+import {
+  capDigestLines,
+  CLASSIFIER_DIGEST_MAX_LINES,
+  CLASSIFIER_MAX_TOKENS,
+  CLASSIFIER_TURN_LIMIT,
+  GENERATOR_DIGEST_MAX_LINES,
+  GENERATOR_MAX_TOKENS,
+  GENERATOR_TURN_LIMIT,
+  isPrefilterFillerOnly,
+  isPrefilterShortUtterance,
+  STALL_NUDGE_CAP,
+} from "@/lib/interviewTurnPrefilter";
 import { getSettings } from "@/lib/settings";
 import { NextResponse } from "next/server";
 
@@ -155,6 +167,7 @@ export async function POST(request: Request) {
   if (!validTrigger(record.trigger)) {
     return NextResponse.json({ error: "Invalid trigger" }, { status: 400 });
   }
+  const turnTrigger: TurnTrigger = record.trigger;
   if (
     typeof record.tsMs !== "number" ||
     !Number.isSafeInteger(record.tsMs) ||
@@ -192,7 +205,7 @@ export async function POST(request: Request) {
   const utteranceText =
     typeof record.utteranceText === "string" ? record.utteranceText.trim() : "";
   if (
-    (record.trigger === "utterance" &&
+    (turnTrigger === "utterance" &&
       (utteranceText.length === 0 || utteranceText.length > 10_000)) ||
     utteranceText.length > 10_000
   ) {
@@ -236,6 +249,25 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+
+    if (turnTrigger === "stall") {
+      const stallNudges = await prisma.transcriptEntry.count({
+        where: {
+          sessionId,
+          role: "interviewer",
+          kind: "nudge",
+          trigger: "stall",
+        },
+      });
+      if (stallNudges >= STALL_NUDGE_CAP) {
+        console.log("Interviewer turn skipped:", {
+          sessionId,
+          reason: "stall:capped",
+          stallNudges,
+        });
+        return new Response(null, { status: 204 });
+      }
+    }
     if (!isInterviewPhase(session.currentPhase)) {
       return NextResponse.json(
         { error: "Session has an invalid current phase" },
@@ -243,19 +275,19 @@ export async function POST(request: Request) {
       );
     }
 
-    if (record.trigger === "opening" || record.trigger === "wrapup") {
+    if (turnTrigger === "opening" || turnTrigger === "wrapup") {
       const duplicate = await prisma.transcriptEntry.findFirst({
         where: {
           sessionId,
           role: "interviewer",
-          kind: record.trigger,
+          kind: turnTrigger,
           suppressed: false,
         },
         select: { id: true },
       });
       if (duplicate) {
         console.log("Interviewer turn skipped:", {
-          trigger: record.trigger,
+          trigger: turnTrigger,
           reason: "already persisted",
         });
         return new Response(null, { status: 204 });
@@ -277,14 +309,39 @@ export async function POST(request: Request) {
         role: { in: ["candidate", "interviewer"] },
       },
       orderBy: [{ tsMs: "desc" }, { createdAt: "desc" }],
-      take: 6,
+      take: CLASSIFIER_TURN_LIMIT,
     });
+
+    const classifierDigest = capDigestLines(
+      record.sceneDigest,
+      CLASSIFIER_DIGEST_MAX_LINES,
+    );
+    const generatorDigest = capDigestLines(
+      record.sceneDigest,
+      GENERATOR_DIGEST_MAX_LINES,
+    );
 
     let decision: ClassifierDecision | null = null;
     let classifierMs = 0;
     let generatorMs = 0;
     let shortcircuit: "question" | null = null;
-    if (record.trigger === "utterance") {
+    let turnPromptTokens = 0;
+    let turnCompletionTokens = 0;
+    if (turnTrigger === "utterance") {
+      if (isPrefilterShortUtterance(utteranceText)) {
+        console.log("Interviewer classifier:", {
+          action: "stay_silent",
+          reason: "prefilter:short",
+        });
+        return new Response(null, { status: 204 });
+      }
+      if (isPrefilterFillerOnly(utteranceText)) {
+        console.log("Interviewer classifier:", {
+          action: "stay_silent",
+          reason: "prefilter:filler",
+        });
+        return new Response(null, { status: 204 });
+      }
       const qualifiesForQuestionShortcircuit =
         wordCount(utteranceText) >= QUESTION_SHORTCIRCUIT_MIN_WORDS &&
         utteranceText.endsWith("?") &&
@@ -307,14 +364,16 @@ export async function POST(request: Request) {
             session,
             settings,
             elapsedMs: canonicalElapsedMs,
-            sceneDigest: record.sceneDigest,
+            sceneDigest: classifierDigest,
             turns: classifierTurns.reverse(),
             utteranceText,
           }),
           temperature: 0,
-          maxTokens: 180,
+          maxTokens: CLASSIFIER_MAX_TOKENS,
         });
         classifierMs = Math.round(performance.now() - classifierStartedAt);
+        turnPromptTokens += classified.usage.promptTokens;
+        turnCompletionTokens += classified.usage.completionTokens;
         await addUsage(sessionId, classified.usage);
         decision = parseClassifierDecision(classified.content);
         console.log("Interviewer classifier:", {
@@ -332,7 +391,7 @@ export async function POST(request: Request) {
       sinceLastInterviewerMs < HARD_COOLDOWN_MS
     ) {
       console.log("Interviewer turn skipped:", {
-        trigger: record.trigger,
+        trigger: turnTrigger,
         reason: "hard_cooldown",
         sinceLastInterviewerMs,
       });
@@ -340,8 +399,8 @@ export async function POST(request: Request) {
     }
 
     const floorApplies =
-      record.trigger === "stall" ||
-      (record.trigger === "utterance" &&
+      turnTrigger === "stall" ||
+      (turnTrigger === "utterance" &&
         decision?.action !== "answer_question");
     if (floorApplies) {
       if (
@@ -349,7 +408,7 @@ export async function POST(request: Request) {
         canonicalElapsedMs - latestInterviewer.tsMs < TURN_FLOOR_MS
       ) {
         console.log("Interviewer turn skipped:", {
-          trigger: record.trigger,
+          trigger: turnTrigger,
           reason: "floor",
         });
         return new Response(null, { status: 204 });
@@ -363,7 +422,7 @@ export async function POST(request: Request) {
         role: { in: ["candidate", "interviewer"] },
       },
       orderBy: [{ tsMs: "desc" }, { createdAt: "desc" }],
-      take: 12,
+      take: GENERATOR_TURN_LIMIT,
     });
     const lastPhaseAdvance = await prisma.transcriptEntry.findFirst({
       where: {
@@ -386,12 +445,12 @@ export async function POST(request: Request) {
       decision?.advance_phase === true ||
       phaseElapsedMin > phaseBudgetMinValue;
     const baseInstruction =
-      record.trigger === "utterance" &&
+      turnTrigger === "utterance" &&
       decision &&
       decision.action !== "stay_silent"
         ? actionInstruction(decision.action, utteranceText)
         : triggerInstruction({
-            trigger: record.trigger as Exclude<TurnTrigger, "utterance">,
+            trigger: turnTrigger as Exclude<TurnTrigger, "utterance">,
             problem: session.problem,
             currentPhase: session.currentPhase,
           });
@@ -421,7 +480,7 @@ export async function POST(request: Request) {
       phaseBudgetMin: phaseBudgetMinValue,
       phaseNotes: parsePhaseNotes(session.phaseNotesJson),
       turns: orderedTurns,
-      sceneDigest: record.sceneDigest,
+      sceneDigest: generatorDigest,
     };
     const textOnlyMessages = generatorMessages({
       ...generatorContext,
@@ -462,7 +521,7 @@ export async function POST(request: Request) {
         model: settings.interviewerModel,
         messages: imageMessages,
         temperature: 0.4,
-        maxTokens: 300,
+        maxTokens: GENERATOR_MAX_TOKENS,
       });
       imageUsed = boardImageBase64 !== null;
       if (imageUsed && settings.interviewerVisionWarning) {
@@ -483,7 +542,7 @@ export async function POST(request: Request) {
         model: settings.interviewerModel,
         messages: fallbackMessages,
         temperature: 0.4,
-        maxTokens: 300,
+        maxTokens: GENERATOR_MAX_TOKENS,
       });
       await prisma.settings.update({
         where: { id: settings.id },
@@ -496,17 +555,19 @@ export async function POST(request: Request) {
       });
     }
     generatorMs = Math.round(performance.now() - generatorStartedAt);
+    turnPromptTokens += generated.usage.promptTokens;
+    turnCompletionTokens += generated.usage.completionTokens;
     await addUsage(sessionId, generated.usage);
 
     const parsed = stripPhaseNote(generated.content);
     const reply = parsed.reply || "Let us continue. What would you consider next?";
     const action = decision?.action;
     const kind =
-      record.trigger === "opening"
+      turnTrigger === "opening"
         ? "opening"
-        : record.trigger === "wrapup"
+        : turnTrigger === "wrapup"
           ? "wrapup"
-          : record.trigger === "stall"
+          : turnTrigger === "stall"
             ? "nudge"
             : action && action !== "stay_silent"
               ? kindForAction(action)
@@ -532,6 +593,7 @@ export async function POST(request: Request) {
           sessionId,
           role: "interviewer",
           kind,
+          trigger: turnTrigger,
           text: reply,
           tsMs: replyTsMs,
           suppressed: false,
@@ -579,10 +641,12 @@ export async function POST(request: Request) {
       shortcircuit,
       image: imageUsed,
       imageBytes: imageUsed ? boardImageBytes : 0,
+      promptTokens: turnPromptTokens,
+      completionTokens: turnCompletionTokens,
     };
     console.log("Interviewer turn timing:", {
       sessionId,
-      trigger: record.trigger,
+      trigger: turnTrigger,
       boardContext:
         boardImageBase64 && !imageUsed
           ? "Image rejected; retried from digest only."

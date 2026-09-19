@@ -10,7 +10,9 @@ import {
   useTranscriptStore,
   type TranscriptFinal,
 } from "@/components/transcript/TranscriptStore";
+import { SiteChrome } from "@/components/layout/SiteChrome";
 import { Badge } from "@/components/ui/Badge";
+import { MaterialIcon } from "@/components/ui/MaterialIcon";
 import { Button } from "@/components/ui/Button";
 import { Tabs } from "@/components/ui/Tabs";
 import { useDeepgramLive } from "@/hooks/useDeepgramLive";
@@ -70,6 +72,7 @@ type PersistedTranscriptEntry = {
   id: string;
   role: "candidate" | "interviewer" | "system";
   kind: TranscriptKind | null;
+  trigger?: string | null;
   text: string;
   tsMs: number;
   suppressed: boolean;
@@ -488,9 +491,20 @@ export function InterviewRoom({
     },
   ];
 
+  const runtimeStatus = interviewerSpeaking
+    ? "INTERVIEWER SPEAKING"
+    : micState === "listening"
+      ? "LISTENING"
+      : "IDLE · MIC OFF";
+
   return (
-    <div className="flex h-[calc(100vh-0px)] min-h-0 flex-col bg-[#FAFAFA]">
-      <header className="flex shrink-0 flex-wrap items-center gap-4 border-b border-[#E5E5E5] bg-white px-4 py-3">
+    <SiteChrome
+      immersive
+      runtimeStatus={runtimeStatus}
+      interviewHref={`/interview/${sessionId}`}
+    >
+    <div className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col bg-[#FAFAFA]">
+      <header className="flex shrink-0 flex-wrap items-center gap-4 border-b border-[#E5E5E5] bg-white/95 px-4 py-3 shadow-sm backdrop-blur-sm">
         <h1 className="text-sm font-semibold text-[#0A0A0A]">{title}</h1>
         <Badge filled>{targetLevel}</Badge>
         <PhaseStepper
@@ -544,6 +558,13 @@ export function InterviewRoom({
       <footer
         className="flex shrink-0 flex-wrap items-center gap-6 border-t border-[#E5E5E5] bg-white px-4 py-2 text-xs text-[#6B6B6B]"
       >
+        <span className="hidden items-center gap-1 font-mono uppercase tracking-wider text-[#0A0A0A] sm:inline-flex">
+          <MaterialIcon
+            name={interviewerSpeaking ? "record_voice_over" : "graphic_eq"}
+            className="text-[14px]"
+          />
+          AI evaluator · {runtimeStatus}
+        </span>
         <MicControls
           state={micState}
           error={micError}
@@ -573,5 +594,6 @@ export function InterviewRoom({
         </span>
       </footer>
     </div>
+    </SiteChrome>
   );
 }

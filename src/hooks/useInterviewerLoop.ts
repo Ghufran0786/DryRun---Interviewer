@@ -6,6 +6,7 @@ import { isInterviewPhase } from "@/lib/interviewPhases";
 import type { TranscriptFinal } from "@/components/transcript/TranscriptStore";
 import type { UtteranceTiming } from "@/hooks/useDeepgramLive";
 import { elapsedMsSinceSessionStart } from "@/lib/sessionTime";
+import { STALL_NUDGE_CAP } from "@/lib/interviewTurnPrefilter";
 import type { PreparedVisionTurn } from "@/lib/visionTurn";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -34,6 +35,8 @@ export type TurnTiming = {
   shortcircuit: "question" | null;
   image: boolean;
   imageBytes: number;
+  promptTokens: number;
+  completionTokens: number;
 };
 
 export type InterviewerLoopDebugEvent = {
@@ -57,8 +60,19 @@ type UseInterviewerLoopOptions = {
   appendEntry: (entry: TranscriptFinal) => void;
 };
 
-const STALL_SILENCE_MS = 50_000;
-const STALL_COOLDOWN_MS = 120_000;
+const STALL_SILENCE_MS =
+  process.env.NODE_ENV === "development" ? 5_000 : 50_000;
+const STALL_COOLDOWN_MS =
+  process.env.NODE_ENV === "development" ? 1_000 : 120_000;
+
+function countStallNudges(finals: TranscriptFinal[]): number {
+  return finals.filter(
+    (entry) =>
+      entry.role === "interviewer" &&
+      entry.kind === "nudge" &&
+      entry.trigger === "stall",
+  ).length;
+}
 
 export function useInterviewerLoop({
   sessionId,
@@ -229,6 +243,8 @@ export function useInterviewerLoop({
             shortcircuit: result.timing.shortcircuit,
             image: result.timing.image,
             imageBytes: result.timing.imageBytes,
+            promptTokens: result.timing.promptTokens,
+            completionTokens: result.timing.completionTokens,
           });
           console.table([
             {
@@ -242,6 +258,8 @@ export function useInterviewerLoop({
               shortcircuit: result.timing.shortcircuit ?? "none",
               image: result.timing.image,
               imageBytes: result.timing.imageBytes,
+              promptTokens: result.timing.promptTokens,
+              completionTokens: result.timing.completionTokens,
             },
           ]);
         }
@@ -481,6 +499,13 @@ export function useInterviewerLoop({
         now - watchdogResetAtRef.current >= STALL_SILENCE_MS &&
         now - lastStallRef.current >= STALL_COOLDOWN_MS
       ) {
+        if (countStallNudges(finals) >= STALL_NUDGE_CAP) {
+          recordDiagnostic("stall-capped", {
+            stallNudges: countStallNudges(finals),
+          });
+          console.log("stall:capped");
+          return;
+        }
         lastStallRef.current = now;
         recordDiagnostic("stall-timer-fire", {
           silentMs: now - watchdogResetAtRef.current,
@@ -498,6 +523,7 @@ export function useInterviewerLoop({
     recordDiagnostic,
     startedAtMs,
     status,
+    finals,
   ]);
 
   useEffect(() => {

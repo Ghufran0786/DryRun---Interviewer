@@ -20,6 +20,7 @@ export type TranscriptFinal = {
   text: string;
   tsMs: number;
   suppressed: boolean;
+  trigger?: string | null;
   source: TranscriptSource;
 };
 

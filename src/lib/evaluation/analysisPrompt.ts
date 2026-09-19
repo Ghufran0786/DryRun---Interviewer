@@ -77,6 +77,7 @@ export function buildAnalysisPrompt(
   entries: TranscriptEntry[],
   snapshots: SnapshotLike[],
   evaluationJson?: string | null,
+  options?: { omitTranscriptAndDigests?: boolean },
 ): string {
   const stats = computeStats(entries, session);
   const resumeText = settings.resumeText.trim();
@@ -126,27 +127,76 @@ Resume (for role fit): ${resumeText.length > 0 ? resumeText : "(not provided —
 ${statsBlock}
 
 ## Whiteboard evolution (digests)
-${digestBlocks.length > 0 ? digestBlocks.join("\n\n") : "(no snapshots captured)"}
+${
+    options?.omitTranscriptAndDigests
+      ? "(see appendix above)"
+      : digestBlocks.length > 0
+        ? digestBlocks.join("\n\n")
+        : "(no snapshots captured)"
+  }
 
 ## Full transcript
-${transcriptLines.join("\n") || "(empty)"}
+${
+    options?.omitTranscriptAndDigests
+      ? "(see appendix above)"
+      : transcriptLines.join("\n") || "(empty)"
+  }
 
 ## DryRun's own evaluation (comparison only — do NOT anchor on it)
 ${evaluationComparisonBlock(evaluationSource)}
 
-## Your task
-1. Independently score the candidate 0-4 on the 8 dimensions below, applying
-   the level calibration strictly: ${dimensionsBlock}
-2. Cite evidence for every score using [mm:ss] timestamps or [snapshot:NNN]
-   references. This transcript is speech-to-text: judge ideas, never grammar
-   or mis-transcribed proper nouns.
-3. State explicitly where you DISAGREE with DryRun's evaluation and why.
-4. Answer plainly: would this candidate receive an offer for a ${session.targetLevel}
-   role at a top product company, based on this interview AND the resume
-   above? Strong Hire / Hire / Lean Hire / No Hire, with deciding factors —
-   reference the candidate's actual experience where relevant.
-5. Give the 3 highest-leverage improvements, each with a one-week drill plan.
+## Your task — produce these sections in this exact order
+
+1. VERDICT BLOCK: verdict · weighted score · the level this performance
+   actually supports · and a plain answer: would this candidate receive an
+   offer for a ${session.targetLevel} role at a top product company, given this
+   interview AND the resume above? Name the deciding factors.
+2. SCORE TABLE: for each of the 8 dimensions below, score 0-4 with a one-line
+   justification citing [mm:ss] or [snapshot:NNN]. Apply the level
+   calibration strictly; bonus items never cause deductions:
+   ${dimensionsBlock}
+   Verdict bands on the weighted average: >=3.4 Strong Hire · 2.6-3.39 Hire ·
+   2.0-2.59 Lean Hire · <2.0 No Hire (you may move ONE step with explicit
+   rationale).
+3. DISAGREEMENTS with DryRun's included evaluation, if present, and why.
+   Score independently first; do not anchor on it.
+4. THE THREE WORST MOMENTS: the three most costly timestamps. For each, quote
+   what happened, then script the ~30-second answer a strong candidate at
+   this level would have given instead.
+5. THE MODEL INTERVIEW: how this exact problem should be handled at
+   ${session.targetLevel}, phase by phase with minute budgets (Requirements →
+   Estimation → API/Data → HLD → Deep Dive → Wrap-up), 2-3 sentences of
+   ideal content per phase.
+6. THE MODEL WHITEBOARD: the ideal end-state board as a Mermaid flowchart
+   with every component labeled, plus one line per component explaining its
+   job and the key choice behind it. Then describe the BOARD EVOLUTION: what
+   should be visible at minute 5, 15, 25, and 40.
+7. DRILL PLAN: the 3 highest-leverage improvements, each with a concrete
+   one-week practice routine and a measurable exit criterion.
+
+Rules: this transcript is speech-to-text — judge ideas, never grammar or
+garbled proper nouns; an isolated obviously-off-topic segment is a
+transcription artifact, ignore it. Hints include interviewer answers given
+because the candidate explicitly asked for help; 0-1 hints normal, 2-3 caps
+Communication at 3, 4+ caps it at 2.
 `;
+}
+
+export function buildAnalysisPromptForPdfExternalPage(
+  session: SessionContext,
+  settings: Pick<Settings, "resumeText">,
+  entries: TranscriptEntry[],
+  snapshots: SnapshotLike[],
+  evaluationJson?: string | null,
+): string {
+  return buildAnalysisPrompt(
+    session,
+    settings,
+    entries,
+    snapshots,
+    evaluationJson,
+    { omitTranscriptAndDigests: true },
+  );
 }
 
 export function snapshotZipFilename(

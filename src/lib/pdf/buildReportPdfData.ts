@@ -1,3 +1,4 @@
+import { buildAnalysisPromptForPdfExternalPage } from "@/lib/evaluation/analysisPrompt";
 import { computeStats } from "@/lib/evaluation/assemble";
 import { parseStoredEvaluation } from "@/lib/evaluation/parseStored";
 import type { ReportPdfData } from "@/lib/pdf/reportPdfTypes";
@@ -82,5 +83,12 @@ export async function buildReportPdfData(input: {
     transcriptLines: visibleTranscriptLines(input.entries),
     diagrams,
     generatedAt: formatDateTime(new Date()),
+    externalEvalInstructions: buildAnalysisPromptForPdfExternalPage(
+      input.session,
+      input.settings,
+      input.entries,
+      input.snapshots,
+      input.session.evaluationJson,
+    ),
   };
 }

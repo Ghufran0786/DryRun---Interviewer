@@ -35,6 +35,7 @@ model TranscriptEntry {
   sessionId  String
   role       String
   kind       String?
+  trigger    String?
   text       String
   tsMs       Int
   suppressed Boolean  @default(false)

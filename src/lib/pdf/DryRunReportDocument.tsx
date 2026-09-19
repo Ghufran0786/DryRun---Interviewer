@@ -62,6 +62,7 @@ const styles = StyleSheet.create({
   caption: { fontSize: 9, color: "#6B6B6B", marginBottom: 4 },
   digest: { fontSize: 8, lineHeight: 1.35, marginBottom: 10, color: "#0A0A0A" },
   appendix: { fontSize: 8, lineHeight: 1.35 },
+  mono: { fontSize: 7, lineHeight: 1.35, fontFamily: "Courier" },
   timelinePhase: { width: "40%" },
   timelineMinutes: { width: "20%", textAlign: "right" },
 });
@@ -132,6 +133,16 @@ function PhaseTimelineSection({ data }: { data: ReportPdfData }) {
   );
 }
 
+function ExternalEvalInstructionsPage({ data }: { data: ReportPdfData }) {
+  return (
+    <Page size="A4" style={styles.page}>
+      <Text style={styles.h2}>How to evaluate this packet</Text>
+      <Text style={styles.mono}>{data.externalEvalInstructions}</Text>
+      <Text fixed style={styles.footer}>{footerText(data)}</Text>
+    </Page>
+  );
+}
+
 function DiagramsSection({ data }: { data: ReportPdfData }) {
   if (data.diagrams.length === 0) {
     return null;
@@ -189,6 +200,8 @@ export function DryRunReportDocument({ data }: { data: ReportPdfData }) {
           ))}
           <Text fixed style={styles.footer}>{footerText(data)}</Text>
         </Page>
+
+        <ExternalEvalInstructionsPage data={data} />
       </Document>
     );
   }
@@ -278,6 +291,8 @@ export function DryRunReportDocument({ data }: { data: ReportPdfData }) {
         ))}
         <Text fixed style={styles.footer}>{footerText(data)}</Text>
       </Page>
+
+      <ExternalEvalInstructionsPage data={data} />
     </Document>
   );
 }

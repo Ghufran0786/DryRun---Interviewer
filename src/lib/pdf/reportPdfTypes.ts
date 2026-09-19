@@ -31,4 +31,5 @@ export type ReportPdfData = {
   transcriptLines: string[];
   diagrams: ReportPdfDiagram[];
   generatedAt: string;
+  externalEvalInstructions: string;
 };
