@@ -42,7 +42,7 @@ export type BrandDecorItem = {
 
 export type DecorItem = MaterialDecorItem | BrandDecorItem;
 
-export const FLOATING_DECOR: DecorItem[] = [
+const FLOATING_DECOR_ALL: DecorItem[] = [
   {
     id: "m-terminal",
     kind: "material",
@@ -332,3 +332,12 @@ export const FLOATING_DECOR: DecorItem[] = [
     delaySec: 2.1,
   },
 ];
+
+/** At most 14 decor elements; 40–90s motion with staggered delays (Part C). */
+export const FLOATING_DECOR: DecorItem[] = FLOATING_DECOR_ALL.slice(0, 14).map(
+  (item, index) => ({
+    ...item,
+    durationSec: 40 + (index * 7) % 51,
+    delaySec: Number(((index * 2.3) % 14).toFixed(1)),
+  }),
+);

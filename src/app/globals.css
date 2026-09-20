@@ -8,6 +8,9 @@
   --border: #e5e5e5;
   --hover: #f2f2f2;
   --primary-hover: #1a1a1a;
+  --motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --motion-duration-interactive: 180ms;
+  --motion-duration-page: 150ms;
 }
 
 @theme inline {
@@ -161,7 +164,36 @@ body {
   animation: ai-particle-float 2.4s ease-in-out infinite;
 }
 
+.interactive-motion {
+  transition:
+    transform var(--motion-duration-interactive) var(--motion-ease-out),
+    opacity var(--motion-duration-interactive) var(--motion-ease-out),
+    background-color var(--motion-duration-interactive) var(--motion-ease-out),
+    color var(--motion-duration-interactive) var(--motion-ease-out),
+    border-color var(--motion-duration-interactive) var(--motion-ease-out);
+}
+
+.interactive-motion:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.main-shell-fade {
+  animation: main-fade-in var(--motion-duration-page) var(--motion-ease-out);
+}
+
+@keyframes main-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .main-shell-fade {
+    animation: none;
+  }
   .glyph-motion-drift,
   .glyph-motion-bob,
   .glyph-motion-sway,
