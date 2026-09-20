@@ -1,4 +1,5 @@
 {
   "buildCommand": "npm run build:hosted",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "regions": ["iad1"]
 }

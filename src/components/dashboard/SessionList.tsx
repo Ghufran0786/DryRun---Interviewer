@@ -6,8 +6,7 @@ import { ClientDateTime } from "@/components/ui/ClientDateTime";
 import { formatDurationMs, sessionDurationMs } from "@/lib/format";
 import type { Session } from "@prisma/client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type SessionWithCounts = Session & {
   _count: { snapshots: number };
@@ -15,6 +14,7 @@ export type SessionWithCounts = Session & {
 
 type SessionListProps = {
   sessions: SessionWithCounts[];
+  repositoryLabel?: string;
 };
 
 function StatusMarker({ status }: { status: Session["status"] }) {
@@ -38,8 +38,14 @@ function StatusMarker({ status }: { status: Session["status"] }) {
   );
 }
 
-export function SessionList({ sessions }: SessionListProps) {
-  const router = useRouter();
+export function SessionList({
+  sessions,
+  repositoryLabel = "LOCAL REPOSITORY · ./data/dryrun.db",
+}: SessionListProps) {
+  const [visibleSessions, setVisibleSessions] = useState(sessions);
+  useEffect(() => {
+    setVisibleSessions(sessions);
+  }, [sessions]);
   const [pendingDelete, setPendingDelete] = useState<SessionWithCounts | null>(
     null,
   );
@@ -68,7 +74,9 @@ export function SessionList({ sessions }: SessionListProps) {
         throw new Error(message);
       }
       setPendingDelete(null);
-      router.refresh();
+      setVisibleSessions((rows) =>
+        rows.filter((row) => row.id !== session.id),
+      );
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Failed to delete session",
@@ -114,14 +122,14 @@ export function SessionList({ sessions }: SessionListProps) {
       ) : null}
       <div className="mb-2 flex items-center justify-between">
         <p className="text-[0.6875rem] font-medium uppercase tracking-widest text-muted">
-          Past sessions ({sessions.length})
+          Past sessions ({visibleSessions.length})
         </p>
         <p className="font-mono text-[0.8125rem] text-muted">
-          LOCAL REPOSITORY · ./data/dryrun.db
+          {repositoryLabel}
         </p>
       </div>
       <div className="overflow-hidden rounded bg-white shadow-sm">
-        {sessions.map((session, index) => {
+        {visibleSessions.map((session, index) => {
           const href =
             session.status === "completed"
               ? `/report/${session.id}`
