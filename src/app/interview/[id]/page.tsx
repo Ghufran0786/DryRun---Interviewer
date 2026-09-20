@@ -1,6 +1,6 @@
 import { InterviewRoom } from "@/components/interview/InterviewRoom";
 import { TranscriptStoreProvider } from "@/components/transcript/TranscriptStore";
-import { getChromeAuth, getOwnerIdFromSession } from "@/lib/auth/ownerSession";
+import { getOwnerIdFromSession } from "@/lib/auth/ownerSession";
 import { findSessionForUser } from "@/lib/sessionScope";
 import { parseSceneJson } from "@/lib/scenePayload";
 import { getDeepgramTransport } from "@/lib/deepgramTransport";
@@ -22,10 +22,7 @@ export default async function InterviewPage({ params }: PageProps) {
     redirect(`/report/${session.id}`);
   }
 
-  const [settings, chromeAuth] = await Promise.all([
-    getSettings(),
-    getChromeAuth(),
-  ]);
+  const settings = await getSettings();
   const targetLevel = isTargetLevel(session.targetLevel)
     ? session.targetLevel
     : "SDE-2";
@@ -59,7 +56,6 @@ export default async function InterviewPage({ params }: PageProps) {
         startedAtMs={startedAtMs}
         initialScene={parseSceneJson(session.sceneJson)}
         deepgramTransport={getDeepgramTransport()}
-        chromeAuth={chromeAuth}
       />
     </TranscriptStoreProvider>
   );

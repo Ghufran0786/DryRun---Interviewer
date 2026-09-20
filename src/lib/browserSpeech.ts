@@ -66,6 +66,14 @@ export function waitForVoices(maxMs = VOICES_WAIT_MS): Promise<SpeechSynthesisVo
   });
 }
 
+/** Warm the voice list before speak (Chrome loads voices asynchronously). */
+export function primeBrowserSpeechVoices(): void {
+  if (typeof window === "undefined" || !window.speechSynthesis) {
+    return;
+  }
+  window.speechSynthesis.getVoices();
+}
+
 export type BrowserSpeechVoiceOption = {
   name: string;
   lang: string;
