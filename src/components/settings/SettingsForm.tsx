@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/Button";
 import { FieldInput, FieldLabel, FieldTextarea } from "@/components/ui/Field";
 import {
+  primeBrowserSpeechVoices,
   sortVoicesForSettings,
   speakBrowserText,
   waitForVoices,
@@ -131,9 +132,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitting(true);
     setError(null);
     setSaved(false);
-    setSubmitting(true);
     try {
       if (!(await saveSettings())) return;
       setSaved(true);
@@ -145,10 +146,10 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   }
 
   async function handleTestModels() {
+    setTesting(true);
     setError(null);
     setSaved(false);
     setModelResults([]);
-    setTesting(true);
     try {
       if (!(await saveSettings())) return;
       const response = await fetch("/api/settings/test-models", {
@@ -172,16 +173,17 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   }
 
   async function handleTestVoice() {
+    setTestingVoice(true);
     setError(null);
     setSaved(false);
     setVoiceResult(null);
-    setTestingVoice(true);
     try {
       if (!(await saveSettings())) return;
       const startedAt = performance.now();
       const sample =
         "Hello. I am your DryRun interviewer. Let us begin.";
       if (ttsProvider === "browser") {
+        primeBrowserSpeechVoices();
         await new Promise<void>((resolve, reject) => {
           void speakBrowserText(sample, {
             voiceName: browserVoiceName.trim() || null,

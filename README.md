@@ -48,18 +48,23 @@ If you see `EADDRINUSE`, an older instance is still up; stop all Node processes 
 
 ## Hosted mode (Vercel + Supabase)
 
-For a personal deployment (authentication arrives in a later release), set:
+Hosted mode uses single-owner Supabase email/password auth (no signup UI). Set:
 
 | Variable | Purpose |
 |----------|---------|
-| `APP_MODE` | `hosted` — Postgres + Supabase Storage adapters |
+| `APP_MODE` | `hosted` — Postgres + Supabase Storage + auth |
 | `DATABASE_URL` | Supabase pooled Postgres connection string |
 | `DIRECT_URL` | Supabase direct connection (migrations) |
 | `SUPABASE_URL` | Project API URL |
+| `SUPABASE_ANON_KEY` | Server-only anon key for SSR cookie sessions |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only key for private snapshot bucket I/O |
 | `SUPABASE_SNAPSHOT_BUCKET` | Private bucket name for PNG snapshots |
+| `DRYRUN_OWNER_USER_ID` | UUID of the sole Auth user (`node scripts/discover-supabase-owner.mjs`) |
+| `OWNER_EMAIL` | Owner login email (gates `/debug/deepgram` in hosted mode) |
 
-Build on Vercel with `npm run build:hosted`. Local clones keep `APP_MODE=local` and need only SQLite plus API keys.
+Build on Vercel with `npm run build:hosted`. That runs `prisma migrate deploy`, then **`node scripts/backfill-session-owner.mjs`** (needs `DRYRUN_OWNER_USER_ID` and `DATABASE_URL` in the build environment) to set `userId` on rows still `pending` or `NULL`. Vercel injects production env during `build:hosted`. Manual backfill: `PRISMA_SCHEMA=prisma/postgres/schema.prisma node scripts/backfill-session-owner.mjs`. The dashboard shows how many sessions still need owner assignment until backfill completes.
+
+Set `vercel.json` `regions` to the Vercel code nearest your Supabase region (this repo uses `hnd1` for `ap-northeast-1`). Sync env with `node scripts/sync-vercel-env.mjs` after `.env` is complete (`node scripts/check-hosted-env.mjs`). Local clones keep `APP_MODE=local` and need only SQLite plus API keys (no login).
 
 ## First-run setup
 

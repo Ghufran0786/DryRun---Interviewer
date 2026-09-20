@@ -1,3 +1,4 @@
+import { resolveVerifiedOwnerUserId } from "@/lib/auth/verifiedOwner";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -68,35 +69,22 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // High-frequency API routes: cookie session only (no Auth server round-trip).
+  const verified = await resolveVerifiedOwnerUserId(supabase);
+
   if (isApiPath(pathname)) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user;
-    if (!user) {
+    if (!verified.ok) {
+      if (verified.reason === "forbidden") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (user.id !== ownerId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     return response;
   }
 
-  // App navigations: validate JWT from cookies locally (refresh only when expired).
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
-
-  if (!user) {
+  if (!verified.ok) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  if (user.id !== ownerId) {
-    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return response;
@@ -104,6 +92,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff2?|ttf|otf|eot|ico)$).*)",
   ],
 };

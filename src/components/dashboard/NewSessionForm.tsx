@@ -22,8 +22,8 @@ export function NewSessionForm({ defaultTargetLevel }: NewSessionFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setSubmitting(true);
+    setError(null);
     try {
       const res = await fetch("/api/sessions", {
         method: "POST",

@@ -102,7 +102,6 @@ export function SiteChrome({
   async function handleSignOut() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
-    router.refresh();
   }
 
   const modeLabel = authMode === "hosted" ? "HOSTED" : "LOCAL-FIRST";

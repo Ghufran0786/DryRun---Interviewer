@@ -19,7 +19,11 @@ export default async function DashboardPage() {
   noStore();
   const ownerId = await getOwnerIdFromSession();
   const sessionWhere = ownerId ? sessionsForUserWhere(ownerId) : { id: "__none__" };
-  const [sessions, settings, chromeAuth] = await Promise.all([
+  const unassignedWhere = isHostedMode()
+    ? { OR: [{ userId: null }, { userId: "pending" }] }
+    : { id: "__none__" };
+
+  const [sessions, settings, chromeAuth, unassignedCount] = await Promise.all([
     prisma.session.findMany({
       where: sessionWhere,
       orderBy: { createdAt: "desc" },
@@ -27,6 +31,9 @@ export default async function DashboardPage() {
     }),
     getSettings(),
     getChromeAuth(),
+    isHostedMode()
+      ? prisma.session.count({ where: unassignedWhere })
+      : Promise.resolve(0),
   ]);
 
   const defaultTargetLevel = isTargetLevel(settings.defaultTargetLevel)
@@ -66,6 +73,13 @@ export default async function DashboardPage() {
           </div>
           <NewSessionForm defaultTargetLevel={defaultTargetLevel} />
         </div>
+
+        {unassignedCount > 0 ? (
+          <p className="mb-6 text-sm text-foreground">
+            {unassignedCount} session{unassignedCount === 1 ? "" : "s"} need
+            owner assignment
+          </p>
+        ) : null}
 
         <DashboardStats sessions={sessions} settings={settings} />
 

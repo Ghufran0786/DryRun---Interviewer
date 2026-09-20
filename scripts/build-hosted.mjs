@@ -4,11 +4,11 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-function run(label, command, args, extraEnv = {}) {
+function run(label, command, args, extraEnv = {}, useShell = true) {
   const result = spawnSync(command, args, {
     cwd: root,
     stdio: "inherit",
-    shell: true,
+    shell: useShell,
     env: { ...process.env, ...extraEnv },
   });
   if (result.status !== 0) {
@@ -22,8 +22,10 @@ process.env.PRISMA_SCHEMA = "prisma/postgres/schema.prisma";
 run("prisma:generate", "npm", ["run", "prisma:generate"]);
 run("db:migrate:hosted", "npm", ["run", "db:migrate:hosted"]);
 run(
-  "backfill-session-user-id",
+  "backfill-session-owner",
   process.execPath,
-  [path.join(root, "scripts", "backfill-session-user-id.mjs")],
+  [path.join(root, "scripts", "backfill-session-owner.mjs")],
+  {},
+  false,
 );
 run("next build", "npx", ["next", "build"]);
