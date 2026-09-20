@@ -1,3 +1,5 @@
+import { requireUser } from "@/lib/auth/requireUser";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/db";
 import { callChat, OpenRouterError } from "@/lib/openrouter";
 import { getSettings } from "@/lib/settings";
@@ -63,7 +65,21 @@ async function testModel(role: ModelRole, model: string) {
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
+  const limited = await enforceRateLimit(
+    `test-models:${auth.userId}`,
+    10,
+    60 * 60 * 1000,
+  );
+  if (limited) {
+    return limited;
+  }
+
   const settings = await getSettings();
   const results = await Promise.all([
     testModel("classifier", settings.classifierModel),

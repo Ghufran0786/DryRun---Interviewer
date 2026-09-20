@@ -1,3 +1,6 @@
+import { requireUser } from "@/lib/auth/requireUser";
+import { isHostedMode } from "@/lib/appMode";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import {
@@ -7,6 +10,7 @@ import {
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const MAX_TTS_TEXT_LENGTH = 1200;
 const globalForTts = globalThis as unknown as {
@@ -14,6 +18,20 @@ const globalForTts = globalThis as unknown as {
 };
 
 export async function POST(request: Request) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
+  const limited = await enforceRateLimit(
+    `tts:${auth.userId}`,
+    30,
+    60 * 1000,
+  );
+  if (limited) {
+    return limited;
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -73,7 +91,9 @@ export async function POST(request: Request) {
       typeof record.sessionId === "string" ? record.sessionId.trim() : "";
     if (sessionId) {
       await prisma.session.updateMany({
-        where: { id: sessionId },
+        where: isHostedMode()
+          ? { id: sessionId, userId: auth.userId }
+          : { id: sessionId },
         data: { ttsChars: { increment: text.length } },
       });
     }

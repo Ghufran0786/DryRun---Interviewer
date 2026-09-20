@@ -1,4 +1,6 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { prisma } from "@/lib/db";
+import { findSessionForUser } from "@/lib/sessionScope";
 import { TRANSCRIPT_ROLES } from "@/lib/types";
 import { NextResponse } from "next/server";
 
@@ -9,15 +11,17 @@ function validId(id: string): boolean {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
+  const auth = await requireUser();
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   const { id } = await context.params;
   if (!validId(id)) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
   }
 
-  const session = await prisma.session.findUnique({
-    where: { id },
-    select: { id: true },
-  });
+  const session = await findSessionForUser(id, auth.userId);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
@@ -30,15 +34,17 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   const { id } = await context.params;
   if (!validId(id)) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
   }
 
-  const session = await prisma.session.findUnique({
-    where: { id },
-    select: { status: true },
-  });
+  const session = await findSessionForUser(id, auth.userId);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }

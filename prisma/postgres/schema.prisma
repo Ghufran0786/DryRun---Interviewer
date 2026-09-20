@@ -11,6 +11,7 @@ datasource db {
 
 model Session {
   id               String    @id @default(cuid())
+  userId           String    @default("pending")
   title            String
   problem          String
   targetLevel      String
@@ -31,6 +32,8 @@ model Session {
 
   transcriptEntries TranscriptEntry[]
   snapshots         Snapshot[]
+
+  @@index([userId])
 }
 
 model TranscriptEntry {
@@ -60,6 +63,12 @@ model Snapshot {
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
+}
+
+model RateLimitBucket {
+  bucketKey   String   @id
+  windowStart DateTime
+  count       Int      @default(0)
 }
 
 model Settings {

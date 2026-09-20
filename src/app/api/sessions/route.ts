@@ -1,16 +1,29 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { prisma } from "@/lib/db";
+import { sessionsForUserWhere } from "@/lib/sessionScope";
 import { getSettings } from "@/lib/settings";
 import { isTargetLevel, parseNonEmptyString } from "@/lib/validation";
 import { NextResponse } from "next/server";
 
 export async function GET() {
+  const auth = await requireUser();
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+  const ownerWhere = sessionsForUserWhere(auth.userId);
   const sessions = await prisma.session.findMany({
+    where: ownerWhere,
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(sessions);
 }
 
 export async function POST(request: Request) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -46,6 +59,7 @@ export async function POST(request: Request) {
   const now = new Date();
   const session = await prisma.session.create({
     data: {
+      userId: auth.userId,
       title,
       problem,
       targetLevel,

@@ -1,3 +1,6 @@
+import { requireUser } from "@/lib/auth/requireUser";
+import { findSessionForUser } from "@/lib/sessionScope";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import {
   buildEvaluationMessages,
   computeStats,
@@ -73,13 +76,27 @@ function imageCountFromMessages(
   ).length;
 }
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
+  const limited = await enforceRateLimit(
+    `evaluate:${auth.userId}`,
+    5,
+    60 * 60 * 1000,
+  );
+  if (limited) {
+    return limited;
+  }
+
   const { id: sessionId } = await context.params;
   if (!sessionId || sessionId.length > 64) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
   }
 
-  const session = await prisma.session.findUnique({ where: { id: sessionId } });
+  const session = await findSessionForUser(sessionId, auth.userId);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }

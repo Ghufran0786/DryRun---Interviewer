@@ -1,3 +1,5 @@
+import { requireUser } from "@/lib/auth/requireUser";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -44,7 +46,21 @@ async function requestGrant(
   return { status: response.status, body: text, parsed };
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
+  const limited = await enforceRateLimit(
+    `deepgram-token:${auth.userId}`,
+    60,
+    60 * 1000,
+  );
+  if (limited) {
+    return limited;
+  }
+
   const apiKey = process.env.DEEPGRAM_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

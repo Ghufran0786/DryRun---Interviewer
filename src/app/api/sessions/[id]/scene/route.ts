@@ -1,16 +1,23 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { prisma } from "@/lib/db";
+import { findSessionForUser } from "@/lib/sessionScope";
 import { serializeScenePayload, validateSceneBody } from "@/lib/scenePayload";
 import { NextResponse } from "next/server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, context: RouteContext) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   const { id } = await context.params;
   if (!id || id.length > 64) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
   }
 
-  const session = await prisma.session.findUnique({ where: { id } });
+  const session = await findSessionForUser(id, auth.userId);
   if (!session) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }

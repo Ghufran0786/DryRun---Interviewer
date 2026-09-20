@@ -21,4 +21,9 @@ process.env.PRISMA_SCHEMA = "prisma/postgres/schema.prisma";
 
 run("prisma:generate", "npm", ["run", "prisma:generate"]);
 run("db:migrate:hosted", "npm", ["run", "db:migrate:hosted"]);
+run(
+  "backfill-session-user-id",
+  process.execPath,
+  [path.join(root, "scripts", "backfill-session-user-id.mjs")],
+);
 run("next build", "npx", ["next", "build"]);

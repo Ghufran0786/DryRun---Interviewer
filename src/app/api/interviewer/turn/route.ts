@@ -1,3 +1,6 @@
+import { requireUser } from "@/lib/auth/requireUser";
+import { findSessionForUser } from "@/lib/sessionScope";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/db";
 import {
   BASE_PHASE_BUDGETS,
@@ -37,6 +40,7 @@ import { getSettings } from "@/lib/settings";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const TURN_TRIGGERS = [
   "utterance",
@@ -160,6 +164,20 @@ function kindForAction(action: Exclude<ClassifierAction, "stay_silent">) {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
+  const limited = await enforceRateLimit(
+    `interviewer-turn:${auth.userId}`,
+    30,
+    60 * 1000,
+  );
+  if (limited) {
+    return limited;
+  }
+
   const routeStartedAt = Date.now();
   let body: unknown;
   try {
@@ -247,7 +265,7 @@ export async function POST(request: Request) {
 
   try {
     const [session, settings] = await Promise.all([
-      prisma.session.findUnique({ where: { id: sessionId } }),
+      findSessionForUser(sessionId, auth.userId),
       getSettings(),
     ]);
     if (!session) {

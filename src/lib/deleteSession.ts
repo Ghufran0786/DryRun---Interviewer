@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { findSessionForUser } from "@/lib/sessionScope";
 import {
   assertValidSessionId,
   deleteSessionSnapshots,
@@ -8,14 +9,15 @@ export function isDeletableSessionId(id: string): boolean {
   return id.length > 0 && id.length <= 64 && /^[a-z0-9]+$/i.test(id);
 }
 
-export async function deleteSessionById(sessionId: string): Promise<boolean> {
+export async function deleteSessionById(
+  sessionId: string,
+  userId: string,
+): Promise<boolean> {
   if (!isDeletableSessionId(sessionId)) {
     return false;
   }
 
-  const session = await prisma.session.findUnique({
-    where: { id: sessionId },
-  });
+  const session = await findSessionForUser(sessionId, userId);
   if (!session) {
     return false;
   }

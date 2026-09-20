@@ -1,9 +1,28 @@
 import { DeepgramDoctor } from "@/components/debug/DeepgramDoctor";
 import { SiteChrome } from "@/components/layout/SiteChrome";
+import { getChromeAuth } from "@/lib/auth/ownerSession";
+import { isHostedMode } from "@/lib/appMode";
+import { getDryRunOwnerEmail } from "@/lib/supabase/env";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
 
-export default function DeepgramDebugPage() {
+export const dynamic = "force-dynamic";
+
+export default async function DeepgramDebugPage() {
+  if (isHostedMode()) {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const ownerEmail = getDryRunOwnerEmail();
+    if (!user?.email || user.email.trim().toLowerCase() !== ownerEmail) {
+      notFound();
+    }
+  }
+
+  const chromeAuth = await getChromeAuth();
   return (
-    <SiteChrome runtimeStatus="DEBUG">
+    <SiteChrome initialChromeAuth={chromeAuth} runtimeStatus="DEBUG">
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
         <p className="text-[0.6875rem] font-medium uppercase tracking-widest text-muted">
           Development aid

@@ -1,5 +1,7 @@
 import { SiteChrome } from "@/components/layout/SiteChrome";
+import { getChromeAuth, getOwnerIdFromSession } from "@/lib/auth/ownerSession";
 import { prisma } from "@/lib/db";
+import { sessionsForUserWhere } from "@/lib/sessionScope";
 
 const COLOR_TOKENS = [
   {
@@ -47,19 +49,23 @@ const COLOR_TOKENS = [
 ];
 
 export default async function DocsPage() {
-  const [activeSession, latestReport] = await Promise.all([
+  const ownerId = (await getOwnerIdFromSession()) ?? "local";
+  const scoped = sessionsForUserWhere(ownerId);
+  const [chromeAuth, activeSession, latestReport] = await Promise.all([
+    getChromeAuth(),
     prisma.session.findFirst({
-      where: { status: "active" },
+      where: { status: "active", ...scoped },
       orderBy: { createdAt: "desc" },
     }),
     prisma.session.findFirst({
-      where: { status: "completed" },
+      where: { status: "completed", ...scoped },
       orderBy: { endedAt: "desc" },
     }),
   ]);
 
   return (
     <SiteChrome
+      initialChromeAuth={chromeAuth}
       interviewHref={
         activeSession ? `/interview/${activeSession.id}` : undefined
       }

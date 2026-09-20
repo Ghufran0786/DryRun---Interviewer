@@ -1,15 +1,19 @@
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { findSessionForUser } from "@/lib/sessionScope";
 import { NextResponse } from "next/server";
 
-export async function loadCompletedSessionReportContext(sessionId: string) {
+export async function loadCompletedSessionReportContext(
+  sessionId: string,
+  userId: string,
+) {
   if (!sessionId || sessionId.length > 64) {
     return {
       error: NextResponse.json({ error: "Invalid session id" }, { status: 400 }),
     };
   }
 
-  const session = await prisma.session.findUnique({ where: { id: sessionId } });
+  const session = await findSessionForUser(sessionId, userId);
   if (!session) {
     return {
       error: NextResponse.json({ error: "Session not found" }, { status: 404 }),

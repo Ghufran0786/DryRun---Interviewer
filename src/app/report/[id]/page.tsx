@@ -7,7 +7,9 @@ import { SnapshotGallery } from "@/components/report/SnapshotGallery";
 import { parseStoredEvaluation } from "@/lib/evaluation/parseStored";
 import { Badge } from "@/components/ui/Badge";
 import { formatDateTime, formatDurationMs, sessionDurationMs } from "@/lib/format";
+import { getChromeAuth, getOwnerIdFromSession } from "@/lib/auth/ownerSession";
 import { prisma } from "@/lib/db";
+import { findSessionForUser, sessionsForUserWhere } from "@/lib/sessionScope";
 import { getSettings } from "@/lib/settings";
 import { parseSceneJson } from "@/lib/scenePayload";
 import { digestFromElementsJson } from "@/lib/sceneDigest";
@@ -18,12 +20,14 @@ type PageProps = { params: Promise<{ id: string }> };
 
 export default async function ReportPage({ params }: PageProps) {
   const { id } = await params;
-  const session = await prisma.session.findUnique({ where: { id } });
+  const ownerId = (await getOwnerIdFromSession()) ?? "local";
+  const session = await findSessionForUser(id, ownerId);
   if (!session) {
     notFound();
   }
 
-  const [snapshots, transcript, settings, activeSession] = await Promise.all([
+  const [snapshots, transcript, settings, activeSession, chromeAuth] =
+    await Promise.all([
     prisma.snapshot.findMany({
       where: { sessionId: id },
       orderBy: { capturedAt: "asc" },
@@ -34,9 +38,10 @@ export default async function ReportPage({ params }: PageProps) {
     }),
     getSettings(),
     prisma.session.findFirst({
-      where: { status: "active" },
+      where: { status: "active", ...sessionsForUserWhere(ownerId) },
       orderBy: { createdAt: "desc" },
     }),
+    getChromeAuth(),
   ]);
 
   const durationMs = sessionDurationMs(session.startedAt, session.endedAt);
@@ -55,6 +60,7 @@ export default async function ReportPage({ params }: PageProps) {
 
   return (
     <SiteChrome
+      initialChromeAuth={chromeAuth}
       runtimeStatus="REPORT"
       interviewHref={
         activeSession ? `/interview/${activeSession.id}` : undefined

@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/requireUser";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { TTS_PROVIDERS } from "@/lib/types";
@@ -9,11 +10,21 @@ import {
 import { NextResponse } from "next/server";
 
 export async function GET() {
+  const auth = await requireUser();
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   const settings = await getSettings();
   return NextResponse.json(settings);
 }
 
 export async function PUT(request: Request) {
+  const auth = await requireUser(request);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   let body: unknown;
   try {
     body = await request.json();

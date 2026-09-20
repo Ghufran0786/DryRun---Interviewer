@@ -1,6 +1,7 @@
 import { InterviewRoom } from "@/components/interview/InterviewRoom";
 import { TranscriptStoreProvider } from "@/components/transcript/TranscriptStore";
-import { prisma } from "@/lib/db";
+import { getChromeAuth, getOwnerIdFromSession } from "@/lib/auth/ownerSession";
+import { findSessionForUser } from "@/lib/sessionScope";
 import { parseSceneJson } from "@/lib/scenePayload";
 import { getDeepgramTransport } from "@/lib/deepgramTransport";
 import { getSettings } from "@/lib/settings";
@@ -12,7 +13,8 @@ type PageProps = { params: Promise<{ id: string }> };
 
 export default async function InterviewPage({ params }: PageProps) {
   const { id } = await params;
-  const session = await prisma.session.findUnique({ where: { id } });
+  const ownerId = (await getOwnerIdFromSession()) ?? "local";
+  const session = await findSessionForUser(id, ownerId);
   if (!session) {
     notFound();
   }
@@ -20,7 +22,10 @@ export default async function InterviewPage({ params }: PageProps) {
     redirect(`/report/${session.id}`);
   }
 
-  const settings = await getSettings();
+  const [settings, chromeAuth] = await Promise.all([
+    getSettings(),
+    getChromeAuth(),
+  ]);
   const targetLevel = isTargetLevel(session.targetLevel)
     ? session.targetLevel
     : "SDE-2";
@@ -54,6 +59,7 @@ export default async function InterviewPage({ params }: PageProps) {
         startedAtMs={startedAtMs}
         initialScene={parseSceneJson(session.sceneJson)}
         deepgramTransport={getDeepgramTransport()}
+        chromeAuth={chromeAuth}
       />
     </TranscriptStoreProvider>
   );
